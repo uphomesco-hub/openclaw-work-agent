@@ -121,11 +121,11 @@ OpenClaw command mapping:
 
 ## Light Monitor, Deep Report, And Thresholds
 
-`Work Agent Light Monitor` is the frequent loop. It runs every 30 minutes and should check narrow signals such as important support/feedback mail, obvious backend errors, and configured metric thresholds. It only notifies when action is required.
+`Work Agent Light Monitor` is the frequent OpenClaw brain loop. It runs every 30 minutes, asks the CLI to collect signals, then OpenClaw reasons over those signals using company context, connected tools, and the work vault. It only notifies when action is required.
 
-`Work Agent Daily Deep Report` is the daily synthesis. It runs at 09:15 Asia/Kolkata, writes the work-vault report, and should summarize context, repeated issues, automation candidates, and suggested next thresholds.
+`Work Agent Daily Deep Report` is the daily synthesis. It runs at 09:15 Asia/Kolkata, writes the work-vault report, then OpenClaw should summarize context, repeated issues, automation candidates, and suggested next thresholds.
 
-V1 includes configurable important-mail thresholds:
+V1 includes configurable important-mail thresholds. These are candidate generators, not the brain:
 
 ```json
 {
@@ -139,7 +139,7 @@ V1 includes configurable important-mail thresholds:
 }
 ```
 
-The Gmail check first asks Gmail for likely messages, then filters locally by configured terms so unrelated promotional mail does not become an important alert.
+The Gmail check first asks Gmail for likely messages, then filters locally by configured terms. OpenClaw should then semantically judge the candidate message before it suggests action or updates the work brain.
 
 ## Permission Model
 

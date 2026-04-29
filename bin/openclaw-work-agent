@@ -882,12 +882,12 @@ function cronCommand(args) {
     {
       name: "Work Agent Light Monitor",
       every: "30m",
-      message: "/work run --scheduled light"
+      message: buildBrainLoopMessage("light")
     },
     {
       name: "Work Agent Daily Deep Report",
       cron: "15 9 * * *",
-      message: "/work run --scheduled deep"
+      message: buildBrainLoopMessage("deep")
     }
   ];
 
@@ -912,6 +912,26 @@ function cronCommand(args) {
     const result = run("openclaw", addArgs, { timeout: 60000 });
     console.log(result.ok ? `Installed cron: ${job.name}` : `Failed cron ${job.name}: ${result.stderr || result.stdout}`);
   }
+}
+
+function buildBrainLoopMessage(kind) {
+  if (kind === "light") {
+    return [
+      "Run the OpenClaw Work Agent light monitor.",
+      "Use the work-agent skill and your own reasoning, not only deterministic keyword matching.",
+      "First run `~/.openclaw/tools/openclaw-work-agent run --scheduled light` to collect connector status, threshold candidates, and write the work-vault report.",
+      "Then inspect the report and, if useful, use connected tools such as Gmail via gog, Firebase MCP, and the work Obsidian vault to decide whether anything is genuinely important.",
+      "Update the work vault with any meaningful finding.",
+      "Stay silent unless a real action is needed. Do not send email, mutate Firebase, deploy, delete, or change ad/payment settings without explicit confirmation."
+    ].join(" ");
+  }
+  return [
+    "Run the OpenClaw Work Agent daily deep report.",
+    "Use the work-agent skill and your own reasoning to synthesize the company's current operating context.",
+    "First run `~/.openclaw/tools/openclaw-work-agent run --scheduled deep` to collect connector status, threshold candidates, and write the work-vault report.",
+    "Then read the latest work-vault report and relevant work memory, inspect connected sources if needed, and update the work brain with decisions, repeated issues, suggested thresholds, and automation candidates.",
+    "Only notify the user if there is a decision or action worth taking. Do not send external replies or mutate production systems without explicit confirmation."
+  ].join(" ");
 }
 
 function parseNotifyTarget(value) {

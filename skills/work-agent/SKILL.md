@@ -65,13 +65,13 @@ Reports should be short, evidence-backed, and decision-oriented:
 
 ## Thresholds
 
-Light monitor is the frequent threshold loop. Deep report is the daily synthesis.
+Light monitor is the frequent brain loop. Deep report is the daily synthesis.
 
-Use thresholds for:
+Use thresholds as candidate generators for:
 
 - important Gmail/feedback detection
 - backend error checks
 - sudden activity changes
 - repeated manual work that should become a skill
 
-When a threshold fires, update the work vault and propose the next action. Do not send external replies or mutate production systems without the permission policy above.
+When a threshold fires, do not treat it as the final answer. Use OpenClaw reasoning and connected sources to decide whether it is actually important, update the work vault, and propose the next action. Do not send external replies or mutate production systems without the permission policy above.

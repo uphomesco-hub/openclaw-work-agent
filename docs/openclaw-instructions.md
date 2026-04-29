@@ -43,10 +43,12 @@ When asking for confirmation, include the exact resource/path, intended change, 
 
 ## Scheduled Runs
 
-- Scheduled `/work run --scheduled light` should stay quiet unless there is a clear issue or action needed.
-- Daily deep reports should write to Obsidian and only notify the user with a concise summary when there are decisions to make.
+- Scheduled Work Agent jobs are OpenClaw brain loops, not raw keyword jobs.
+- The CLI collects connector status, candidates, and reports; OpenClaw then reasons over those candidates using company context, connected tools, and the work vault.
+- Scheduled light monitor should stay quiet unless OpenClaw judges there is a clear issue or action needed.
+- Daily deep report should write to Obsidian, synthesize context, suggest thresholds/automations, and only notify the user when there are decisions to make.
 - Telegram is the default alert channel when configured.
-- Important Gmail/feedback thresholds are configurable with keywords, lookback, and count. Treat matched mail as a signal to update the work brain and propose a reply/action, not as permission to send a reply.
+- Important Gmail/feedback thresholds are candidate generators. OpenClaw must semantically judge whether matched mail is truly important before suggesting action.
 
 ## UpHomes V1 Focus
 
