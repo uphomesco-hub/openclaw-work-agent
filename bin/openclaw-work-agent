@@ -521,7 +521,7 @@ function printStatus(discovery, asJson = false) {
     console.log(JSON.stringify(discovery, null, 2));
     return;
   }
-  console.log("OpenClaw Work Agent status");
+  console.log("OpenClaw Ops Brain status");
   console.log(`Generated: ${discovery.generatedAt}`);
   console.log("");
   for (const [name, ok, via, detail] of connectorRows(discovery)) {
@@ -561,7 +561,7 @@ function buildReport(config, discovery, options = {}) {
 
   const lines = [
     "---",
-    `title: ${company.name} Work Agent Report`,
+    `title: ${company.name} Ops Brain Report`,
     `generated: ${discovery.generatedAt}`,
     `company: ${company.name}`,
     `permission_mode: ${mode}`,
@@ -569,7 +569,7 @@ function buildReport(config, discovery, options = {}) {
     `dry_run: ${Boolean(options.dryRun)}`,
     "---",
     "",
-    `# ${company.name} Work Agent Report`,
+    `# ${company.name} Ops Brain Report`,
     "",
     "## Summary",
     "",
@@ -781,11 +781,11 @@ function ensureWorkVault(reportDir, config) {
     fs.writeFileSync(indexPath, [
       "# Work Brain Index",
       "",
-      "This is the dedicated Obsidian work vault for OpenClaw Work Agent.",
+      "This is the dedicated Obsidian work vault for OpenClaw Ops Brain.",
       "",
       "## Companies",
       "",
-      `- [[projects/${company.slug}-work-agent|${company.name} Work Agent]]`,
+      `- [[projects/${company.slug}-work-agent|${company.name} Ops Brain]]`,
       "",
       "## System Pages",
       "",
@@ -836,7 +836,7 @@ function buildTelegramSummary(report, file) {
   const missing = report.summary.missingConnectors.length ? report.summary.missingConnectors.join(", ") : "none";
   const actions = report.summary.actionCandidates.slice(0, 3).map((item) => `- ${item}`).join("\n") || "- No connector blockers found.";
   return [
-    `Work Agent report for ${report.summary.company}`,
+    `Ops Brain report for ${report.summary.company}`,
     `Mode: ${report.summary.permissionMode}`,
     `Missing connectors: ${missing}`,
     `Report: ${file}`,
@@ -1277,7 +1277,7 @@ async function initCommand(args) {
   writeJson(configPath, config);
   ensureDir(path.dirname(DEFAULT_LOG_PATH));
   appendJsonl(DEFAULT_LOG_PATH, { event: "init", configPath, activeCompany: config.activeCompany });
-  console.log(`Wrote Work Agent config: ${configPath}`);
+  console.log(`Wrote Ops Brain config: ${configPath}`);
 }
 
 async function ask(rl, prompt, fallback = "") {
@@ -1428,12 +1428,12 @@ function cronCommand(args) {
   const existing = run("openclaw", ["cron", "list"], { timeout: 30000 }).stdout || "";
   const jobs = [
     {
-      name: "Work Agent Light Monitor",
+      name: "Ops Brain Light Monitor",
       every: "30m",
       message: buildBrainLoopMessage("light")
     },
     {
-      name: "Work Agent Daily Deep Report",
+      name: "Ops Brain Daily Deep Report",
       cron: "15 9 * * *",
       message: buildBrainLoopMessage("deep")
     }
@@ -1465,7 +1465,7 @@ function cronCommand(args) {
 function buildBrainLoopMessage(kind) {
   if (kind === "light") {
     return [
-      "Run the OpenClaw Work Agent light monitor.",
+      "Run the OpenClaw Ops Brain light monitor.",
       "Use the work-agent skill, the agent profile at `~/.openclaw/workspace/agents/work-agent.md`, and your own reasoning, not only deterministic keyword matching.",
       "First run `~/.openclaw/tools/openclaw-work-agent run --scheduled light` to collect connector status, threshold candidates, and write the work-vault report.",
       "Then inspect the report and, if useful, use connected tools such as Gmail via gog, Firebase MCP, and the work Obsidian vault to decide whether anything is genuinely important.",
@@ -1477,7 +1477,7 @@ function buildBrainLoopMessage(kind) {
     ].join(" ");
   }
   return [
-    "Run the OpenClaw Work Agent daily deep report.",
+    "Run the OpenClaw Ops Brain daily deep report.",
     "Use the work-agent skill, the agent profile at `~/.openclaw/workspace/agents/work-agent.md`, and your own reasoning to synthesize the company's current operating context.",
     "First run `~/.openclaw/tools/openclaw-work-agent run --scheduled deep` to collect connector status, threshold candidates, and write the work-vault report.",
     "Then read the latest work-vault report and relevant work memory, inspect connected sources if needed, and update the work brain with decisions, repeated issues, suggested thresholds, and automation candidates.",
@@ -1497,7 +1497,7 @@ function parseNotifyTarget(value) {
 }
 
 function printHelp() {
-  console.log(`OpenClaw Work Agent
+  console.log(`OpenClaw Ops Brain
 
 Usage:
   openclaw-work-agent

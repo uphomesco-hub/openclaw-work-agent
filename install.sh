@@ -25,14 +25,14 @@ TOOLS_MD="$WORKSPACE_DIR/TOOLS.md"
 
 if [[ -f "$AGENTS_MD" ]]; then
   TMP_AGENTS="$(mktemp)"
-  sed '/### OpenClaw Work Agent/,/### End OpenClaw Work Agent/d' "$AGENTS_MD" > "$TMP_AGENTS"
+  sed -e '/### OpenClaw Work Agent/,/### End OpenClaw Work Agent/d' -e '/### OpenClaw Ops Brain/,/### End OpenClaw Ops Brain/d' "$AGENTS_MD" > "$TMP_AGENTS"
   cat "$TMP_AGENTS" > "$AGENTS_MD"
   rm -f "$TMP_AGENTS"
   cat >> "$AGENTS_MD" <<'EOF'
 
-### OpenClaw Work Agent
+### OpenClaw Ops Brain
 
-The only user-facing command is `/work`. Treat it as a new named Work Agent, not a command menu.
+The only user-facing command is `/work`. Treat it as the OpenClaw Ops Brain agent, not a command menu.
 
 When the user sends `/work` or asks to switch to work mode, run:
 
@@ -58,18 +58,18 @@ If the CLI says onboarding is complete, do not stop there. Use OpenClaw brain/to
 
 Default behavior is ask-then-execute. Even in full-access mode, ask before sending emails/messages, deleting data, replacing database subtrees, deploying, creating external resources, or changing payment/ad-spend settings.
 
-### End OpenClaw Work Agent
+### End OpenClaw Ops Brain
 EOF
 fi
 
 if [[ -f "$TOOLS_MD" ]]; then
   TMP_TOOLS="$(mktemp)"
-  sed '/### OpenClaw Work Agent/,/### End OpenClaw Work Agent/d' "$TOOLS_MD" > "$TMP_TOOLS"
+  sed -e '/### OpenClaw Work Agent/,/### End OpenClaw Work Agent/d' -e '/### OpenClaw Ops Brain/,/### End OpenClaw Ops Brain/d' "$TOOLS_MD" > "$TMP_TOOLS"
   cat "$TMP_TOOLS" > "$TOOLS_MD"
   rm -f "$TMP_TOOLS"
   cat >> "$TOOLS_MD" <<'EOF'
 
-### OpenClaw Work Agent
+### OpenClaw Ops Brain
 
 - CLI: `~/.openclaw/tools/openclaw-work-agent`
 - Agent profile: `~/.openclaw/workspace/agents/work-agent.md`
@@ -79,12 +79,12 @@ if [[ -f "$TOOLS_MD" ]]; then
 - Internal CLI entrypoint: `openclaw-work-agent`
 - Internal onboarding answer handler: `openclaw-work-agent answer "<plain English answer>"`
 
-### End OpenClaw Work Agent
+### End OpenClaw Ops Brain
 EOF
 fi
 
 cat <<EOF
-Installed OpenClaw Work Agent.
+Installed OpenClaw Ops Brain.
 
 CLI:
   $TOOLS_DIR/openclaw-work-agent

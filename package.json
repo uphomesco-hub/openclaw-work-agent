@@ -1,7 +1,7 @@
 {
   "name": "openclaw-work-agent",
   "version": "0.1.0",
-  "description": "OpenClaw work agent skill and local CLI for company operations monitoring.",
+  "description": "OpenClaw Ops Brain skill and local CLI for company operations monitoring.",
   "type": "module",
   "bin": {
     "openclaw-work-agent": "bin/openclaw-work-agent"

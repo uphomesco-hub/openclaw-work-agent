@@ -1,10 +1,10 @@
-# OpenClaw Work Agent
+# OpenClaw Ops Brain
 
-Reusable OpenClaw add-on for a `/work` company agent.
+Reusable OpenClaw add-on for a `/work` company agent. The public product name is **OpenClaw Ops Brain**; the repo and CLI remain `openclaw-work-agent` for compatibility.
 
 It gives OpenClaw a company operating layer that can:
 
-- install a named Work Agent profile for OpenClaw
+- install a named Ops Brain agent profile for OpenClaw
 - ask one plain-English onboarding question at a time
 - build a company operating map across customers, product surfaces, workflows, growth, risks, and decision rules
 - detect connected company sources
@@ -120,9 +120,9 @@ The CLI is only the local memory and signal collector. OpenClaw is the brain. On
 
 ## Light Monitor, Deep Report, And Candidate Signals
 
-`Work Agent Light Monitor` is the frequent OpenClaw brain loop. It runs every 30 minutes, asks the CLI to collect signals, then OpenClaw reasons over those signals using company context, connected tools, and the work vault. It only notifies when action is required.
+`Ops Brain Light Monitor` is the frequent OpenClaw brain loop. It runs every 30 minutes, asks the CLI to collect signals, then OpenClaw reasons over those signals using company context, connected tools, and the work vault. It only notifies when action is required.
 
-`Work Agent Daily Deep Report` is the daily synthesis. It runs at 09:15 Asia/Kolkata, writes the work-vault report, then OpenClaw should summarize context, repeated issues, automation candidates, and suggested next thresholds.
+`Ops Brain Daily Deep Report` is the daily synthesis. It runs at 09:15 Asia/Kolkata, writes the work-vault report, then OpenClaw should summarize context, repeated issues, automation candidates, and suggested next thresholds.
 
 V1 includes configurable important-mail thresholds. These are candidate generators, not the brain:
 
@@ -159,8 +159,8 @@ Confirmation should include the exact target, intended change, and likely impact
 
 The installer or OpenClaw can create scheduled checks internally:
 
-- `Work Agent Light Monitor`: every 30 minutes
-- `Work Agent Daily Deep Report`: daily at 09:15 Asia/Kolkata
+- `Ops Brain Light Monitor`: every 30 minutes
+- `Ops Brain Daily Deep Report`: daily at 09:15 Asia/Kolkata
 
 Scheduled runs are quiet by default. Reports are written to the configured Obsidian company folder. Telegram is used for concise notifications when configured and when a run is not quiet.
 

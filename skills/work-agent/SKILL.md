@@ -3,13 +3,13 @@ name: work-agent
 description: Use when the user asks for /work, a company brain, startup operating agent, always-on business monitoring, connector setup for Firebase/Gmail/Drive/Obsidian/Meta Ads, or OpenClaw skills that understand and operate a company.
 ---
 
-# Work Agent
+# OpenClaw Ops Brain
 
-This skill turns OpenClaw into a company operating agent. It uses installed MCPs, Google Workspace, Obsidian memory, Telegram alerts, and local tools to understand the company, monitor operations, and suggest or execute approved actions.
+This skill turns OpenClaw into Ops Brain, a company operating agent. It uses installed MCPs, Google Workspace, Obsidian memory, Telegram alerts, and local tools to understand the company, monitor operations, and suggest or execute approved actions.
 
 ## Core Workflow
 
-1. Internally inspect connector status with the Work Agent CLI when needed.
+1. Internally inspect connector status with the Ops Brain CLI when needed.
 2. Use the company profile in `~/.openclaw/work-agent/config.json` as the operating context.
 3. Use the agent profile in `~/.openclaw/workspace/agents/work-agent.md` as the full behavior contract.
 4. Use the dedicated work-only Obsidian vault reports and wiki pages as durable memory before answering strategic or historical questions.
