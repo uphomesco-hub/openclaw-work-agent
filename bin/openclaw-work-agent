@@ -1654,7 +1654,7 @@ function cronCommand(args) {
   const jobs = [
     {
       name: "Ops Brain Urgent Watch",
-      every: "1m",
+      every: "2m",
       timeoutSeconds: "120",
       message: buildBrainLoopMessage("urgent")
     },
@@ -1698,12 +1698,10 @@ function cronCommand(args) {
 function buildBrainLoopMessage(kind) {
   if (kind === "urgent") {
     return [
-      "Run the OpenClaw Ops Brain urgent watch.",
-      "This is the near-instant lane for useful or emergency connected-source findings.",
-      "First run `~/.openclaw/tools/openclaw-work-agent run --scheduled urgent` to check high-signal sources such as Gmail/support with dedupe.",
-      "If the CLI sends a Telegram alert, stop after writing any useful learning note.",
-      "If it only writes a report and no new urgent connected-source finding exists, stay silent.",
-      "Do not notify for missing optional connectors. Do not send external replies or mutate production systems without explicit confirmation."
+      "Run `~/.openclaw/tools/openclaw-work-agent run --scheduled urgent`.",
+      "This urgent lane checks high-signal connected sources such as Gmail/support with dedupe.",
+      "If no new urgent connected-source finding exists, stay silent.",
+      "Do not notify for missing optional connectors or take external actions."
     ].join(" ");
   }
   if (kind === "light") {
