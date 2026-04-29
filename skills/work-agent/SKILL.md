@@ -12,7 +12,7 @@ This skill turns OpenClaw into a company operating agent. It uses installed MCPs
 1. Internally inspect connector status with the Work Agent CLI when needed.
 2. Use the company profile in `~/.openclaw/work-agent/config.json` as the operating context.
 3. Use the dedicated work-only Obsidian vault reports and wiki pages as durable memory before answering strategic or historical questions.
-4. Use MCPs and local skills for live data only when they are actually connected.
+4. Use MCPs, Gmail, GitHub/local repos, website files, and local skills for live data only when they are actually connected.
 5. If a connector is missing, give setup steps instead of inventing data.
 6. Save durable findings and recurring workflows into Obsidian.
 7. Suggest a new skill when a task repeats.
@@ -26,6 +26,7 @@ The user should only need `/work`.
 - Save each plain-English answer with the internal `answer` command.
 - Do not ask completed onboarding questions again.
 - Once onboarding is complete, summarize what the agent understands: company, goals, sources, watched signals, permission mode, and missing connectors.
+- Include website URL, latest repo commits/push context, latest blogs/reviews, and product/content opportunities when configured.
 - After that, all work-mode interaction should be normal plain English.
 
 Internal commands exist for OpenClaw and setup scripts, but do not present them as the workflow unless the user asks for technical details.
@@ -85,3 +86,15 @@ For Firebase, backend, database, Cloud Functions, or repository issues:
 - Offer "I can fix this if you want" when access exists.
 - Offer "we should assign this to the dev team" when it should be reviewed or is outside current access.
 - Ask before writing, deleting, deploying, sending messages, or changing production data.
+
+## Live Work Summary
+
+When `/work` is entered after onboarding, enrich the CLI summary with OpenClaw brain/tool checks:
+
+- Firebase: online users from RTDB, users today, property/listing activity today, function/backend errors, and user behavior signals.
+- Gmail: important feedback, leads, complaints, payment issues, and support messages.
+- Website/content: latest blog and review seeds, what content is running, what topic might perform better, and SEO/conversion improvements.
+- Repos/GitHub: latest commit/push, dirty local changes, branches, and whether a fix should be handled now or assigned.
+- Obsidian: update the work brain with what was learned.
+
+Keep the final user-facing answer plain English and decision-oriented.

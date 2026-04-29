@@ -16,6 +16,15 @@
       ],
       "firebaseProject": "your-firebase-project-id",
       "gmailAccount": "founder@example.com",
+      "websiteUrl": "https://your-uphomes-site.example",
+      "localRepos": [
+        "$HOME/path/to/uphomes-app",
+        "$HOME/path/to/uphomes-website"
+      ],
+      "githubRepos": [
+        "your-org/uphomes-app",
+        "your-org/uphomes-website"
+      ],
       "driveFolders": [],
       "obsidianCompanyDir": "$HOME/Documents/Obsidian-Work-Brain/wiki/projects/uphomes-work-agent",
       "metricsToWatch": [

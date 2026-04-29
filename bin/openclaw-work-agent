@@ -29,6 +29,9 @@ const DEFAULT_CONFIG = {
       firebaseProject: "",
       gmailAccount: "",
       driveFolders: [],
+      websiteUrl: "",
+      localRepos: [],
+      githubRepos: [],
       obsidianCompanyDir: "",
       metricsToWatch: [],
       connectorsWanted: ["firebase", "gmail", "drive", "obsidian", "telegram", "meta-ads"],
@@ -218,6 +221,14 @@ const ONBOARDING_STEPS = [
   {
     id: "connectors",
     question: "Which sources should I understand for this company? You can say things like Firebase, Gmail, Drive, Meta Ads, Slack, or Obsidian."
+  },
+  {
+    id: "websiteUrl",
+    question: "What is the public website or product URL I should understand? If there is none, say none."
+  },
+  {
+    id: "repos",
+    question: "Which codebases or GitHub repos should I understand for this company? You can give local paths, GitHub repo names, or say none."
   },
   {
     id: "firebaseProject",
@@ -491,6 +502,7 @@ function buildReport(config, discovery, options = {}) {
   const { key, company } = activeCompany(config);
   const rows = connectorRows(discovery);
   const thresholdResult = options.thresholdResult || runThresholdChecks(config, discovery, options);
+  const sourceContext = collectSourceContext(company);
   const missing = rows.filter(([, ok]) => !ok).map(([name, , via, detail]) => ({ name, via, detail }));
   const goals = company.goals?.length ? company.goals : ["No goals configured yet"];
   const metrics = company.metricsToWatch?.length ? company.metricsToWatch : ["No metrics configured yet"];
@@ -525,9 +537,11 @@ function buildReport(config, discovery, options = {}) {
     "## Summary",
     "",
     `- Active profile: ${key}`,
+    `- Business: ${company.businessSummary || "not configured"}`,
     `- Permission mode: ${mode}`,
     `- Firebase project: ${company.firebaseProject || "not configured"}`,
     `- Notification target: ${config.notifyTarget || "not configured"}`,
+    `- Website: ${company.websiteUrl || "not configured"}`,
     "",
     "## Connector Inventory",
     "",
@@ -542,6 +556,17 @@ function buildReport(config, discovery, options = {}) {
     "## Metrics To Watch",
     "",
     ...metrics.map((metric) => `- ${metric}`),
+    "",
+    "## Website And Code Context",
+    "",
+    ...formatSourceContextReport(sourceContext),
+    "",
+    "## Live Business Snapshot For OpenClaw Brain",
+    "",
+    "- Use Firebase MCP to check RTDB online users, users created today, user activity signals, properties/listings published or updated today, and Cloud Functions errors.",
+    "- Use Gmail to inspect important feedback, lead, complaint, payment, and support candidates before suggesting action.",
+    "- Use repo and website context to suggest product, performance, SEO, blog, and conversion improvements.",
+    "- Save important conclusions back into this work vault so the company brain compounds.",
     "",
     "## Threshold Checks",
     "",
@@ -585,6 +610,7 @@ function buildReport(config, discovery, options = {}) {
       permissionMode: mode,
       missingConnectors: missing.map((m) => m.name),
       actionCandidates,
+      sourceContext,
       actionRequired: thresholdResult.actionRequired,
       thresholdChecks: thresholdResult.checks.map((check) => ({
         name: check.name,
@@ -595,6 +621,30 @@ function buildReport(config, discovery, options = {}) {
       reportType: options.scheduled ? "scheduled" : "manual"
     }
   };
+}
+
+function formatSourceContextReport(sourceContext) {
+  const lines = [];
+  if (!sourceContext.repos.length) {
+    lines.push("- No local code repositories configured.");
+  } else {
+    for (const repo of sourceContext.repos) {
+      lines.push(`- ${repo.name}: ${repo.ok ? repo.latestCommit || "no commit found" : "not a git repo or unavailable"}`);
+      if (repo.branch) lines.push(`  - Branch: ${repo.branch}`);
+      if (repo.remote) lines.push(`  - Remote: ${repo.remote}`);
+      if (repo.dirty) lines.push(`  - Local changes: ${repo.statusLines.join("; ")}`);
+    }
+  }
+  if (sourceContext.content.latestBlog) {
+    const blog = sourceContext.content.latestBlog;
+    lines.push(`- Latest blog: ${blog.createdAt || "unknown date"} - ${blog.title || blog.slug}`);
+    if (blog.category) lines.push(`  - Category: ${blog.category}`);
+    if (blog.slug) lines.push(`  - Slug: ${blog.slug}`);
+  }
+  if (sourceContext.content.latestReviews?.length) {
+    lines.push(`- Latest reviews: ${sourceContext.content.latestReviews.map((review) => `${review.name || review.id}${review.designation ? ` (${review.designation})` : ""}`).join("; ")}`);
+  }
+  return lines;
 }
 
 function formatMailMatches(thresholdResult) {
@@ -765,6 +815,7 @@ function formatWorkHome(config, discovery) {
     ].join("\n");
   }
 
+  const sourceContext = collectSourceContext(company);
   const rows = connectorRows(discovery);
   const connected = rows.filter(([, ok]) => ok).map(([name]) => name);
   const missing = rows.filter(([, ok]) => !ok).map(([name]) => name);
@@ -774,16 +825,44 @@ function formatWorkHome(config, discovery) {
     "",
     "What I understand:",
     `- Company: ${company.name}`,
+    ...(company.businessSummary ? [`- Business: ${company.businessSummary}`] : []),
     `- Goals: ${(company.goals || []).join("; ") || "not set"}`,
     `- I should watch: ${(company.metricsToWatch || []).join("; ") || "not set"}`,
     `- Connected sources: ${connected.join(", ") || "none yet"}`,
     `- Missing or optional sources: ${missing.join(", ") || "none"}`,
+    `- Website: ${company.websiteUrl || "not set"}`,
+    ...formatRepoHomeLines(sourceContext.repos),
+    ...formatContentHomeLines(sourceContext.content),
     `- Permission mode: ${config.permissionMode === "full" ? "full access, but sensitive actions still require confirmation" : "ask before execution"}`,
     `- Work vault: ${resolveVaultRoot(expand(company.obsidianCompanyDir || defaultObsidianCompanyDir(company.slug || key))) || DEFAULT_WORK_VAULT_DIR}`,
     lastReport ? `- Latest report: ${lastReport}` : "- Latest report: not created yet",
     "",
+    "Live checks I should run through OpenClaw brain now:",
+    "- Firebase: online users from RTDB presence, users today, property/listing activity today, function errors, and product behavior signals.",
+    "- Gmail: important feedback, leads, complaints, payment issues, and support messages.",
+    "- Website/content: latest blogs/reviews, last push, SEO/content opportunities, and performance improvement ideas.",
+    "",
     "Tell me what you want in plain English. I can inspect the connected sources, summarize what changed, suggest fixes, or ask before taking action."
   ].join("\n");
+}
+
+function formatRepoHomeLines(repos) {
+  if (!repos.length) return ["- Codebases: not set"];
+  return [
+    `- Codebases: ${repos.map((repo) => repo.name).join(", ")}`,
+    ...repos.slice(0, 3).map((repo) => `  - ${repo.name}: ${repo.latestCommit || "no commit found"}${repo.dirty ? " with local changes" : ""}`)
+  ];
+}
+
+function formatContentHomeLines(content) {
+  const lines = [];
+  if (content.latestBlog) {
+    lines.push(`- Latest website blog: ${content.latestBlog.createdAt || "unknown date"} - ${content.latestBlog.title || content.latestBlog.slug}`);
+  }
+  if (content.latestReviews?.length) {
+    lines.push(`- Latest review seeds: ${content.latestReviews.map((review) => `${review.name || review.id}${review.designation ? ` (${review.designation})` : ""}`).join("; ")}`);
+  }
+  return lines.length ? lines : ["- Website content: not read yet"];
 }
 
 function latestReportPath(config) {
@@ -794,6 +873,80 @@ function latestReportPath(config) {
     .sort()
     .reverse();
   return files[0] ? path.join(reportDir, files[0]) : "";
+}
+
+function collectSourceContext(company) {
+  const localRepos = stringArray(company.localRepos).map(expand);
+  const repos = localRepos.map(readRepoContext).filter(Boolean);
+  const websiteRepo = repos.find((repo) => fs.existsSync(path.join(repo.path, "src", "data", "blogs.ts")))
+    || repos.find((repo) => /website|web/i.test(repo.name));
+  const content = websiteRepo ? readWebsiteContentContext(websiteRepo.path) : {};
+  return { repos, content };
+}
+
+function readRepoContext(repoPath) {
+  if (!repoPath || !fs.existsSync(repoPath)) return null;
+  const name = path.basename(repoPath);
+  const inside = run("git", ["-C", repoPath, "rev-parse", "--is-inside-work-tree"], { timeout: 10000 });
+  if (!inside.ok || inside.stdout.trim() !== "true") return { name, path: repoPath, ok: false, latestCommit: "", dirty: false };
+  const latestCommit = run("git", ["-C", repoPath, "log", "-1", "--pretty=%h %s"], { timeout: 10000 }).stdout || "";
+  const branch = run("git", ["-C", repoPath, "branch", "--show-current"], { timeout: 10000 }).stdout || "";
+  const remote = run("git", ["-C", repoPath, "remote", "get-url", "origin"], { timeout: 10000 }).stdout || "";
+  const status = run("git", ["-C", repoPath, "status", "--short"], { timeout: 10000 }).stdout || "";
+  return {
+    name,
+    path: repoPath,
+    ok: true,
+    branch,
+    remote,
+    latestCommit,
+    dirty: Boolean(status.trim()),
+    statusLines: status.split(/\r?\n/).filter(Boolean).slice(0, 8)
+  };
+}
+
+function readWebsiteContentContext(repoPath) {
+  const dataDir = path.join(repoPath, "src", "data");
+  const blogsFile = path.join(dataDir, "blogs.ts");
+  const reviewsFile = path.join(dataDir, "reviews.ts");
+  return {
+    latestBlog: fs.existsSync(blogsFile) ? parseLatestBlog(blogsFile) : null,
+    latestReviews: fs.existsSync(reviewsFile) ? parseLatestReviews(reviewsFile) : []
+  };
+}
+
+function parseLatestBlog(file) {
+  const text = fs.readFileSync(file, "utf8");
+  const firstObject = text.match(/export const blogPosts[\s\S]*?\{\s*slug:\s*"([^"]+)"([\s\S]*?)\n\s*\},/);
+  if (!firstObject) return null;
+  const body = firstObject[2] || "";
+  return {
+    slug: firstObject[1],
+    title: matchStringProperty(body, "title") || "",
+    description: matchStringProperty(body, "description") || "",
+    createdAt: matchStringProperty(body, "createdAt") || "",
+    category: matchStringProperty(body, "category") || ""
+  };
+}
+
+function parseLatestReviews(file) {
+  const text = fs.readFileSync(file, "utf8");
+  const block = text.match(/const REVIEW_SEEDS[\s\S]*?=\s*\[([\s\S]*?)\n\s*\];/);
+  if (!block) return [];
+  const matches = [...block[1].matchAll(/\{\s*id:\s*"([^"]+)"([\s\S]*?)\n\s*\},/g)].slice(0, 2);
+  return matches.map((match) => ({
+    id: match[1],
+    name: matchStringProperty(match[2], "name") || "",
+    designation: matchStringProperty(match[2], "designation") || "",
+    quote: matchStringProperty(match[2], "quote") || ""
+  }));
+}
+
+function matchStringProperty(text, property) {
+  const direct = text.match(new RegExp(`${property}:\\s*"([^"]+)"`));
+  if (direct) return direct[1];
+  const multiline = text.match(new RegExp(`${property}:\\s*\\n\\s*"([^"]+)"`));
+  return multiline ? multiline[1] : "";
 }
 
 function homeCommand(args) {
@@ -870,6 +1023,12 @@ function applyOnboardingAnswer(config, key, company, stepId, answer) {
   if (stepId === "businessSummary") target.businessSummary = answer;
   if (stepId === "goals") target.goals = splitPlainList(answer);
   if (stepId === "connectors") target.connectorsWanted = splitPlainList(answer);
+  if (stepId === "websiteUrl") target.websiteUrl = noneToEmpty(answer);
+  if (stepId === "repos") {
+    const repos = splitPlainList(answer).filter(Boolean);
+    target.localRepos = repos.filter((item) => item.startsWith("/") || item.startsWith("~"));
+    target.githubRepos = repos.filter((item) => !item.startsWith("/") && !item.startsWith("~") && item !== "none");
+  }
   if (stepId === "firebaseProject") target.firebaseProject = noneToEmpty(answer);
   if (stepId === "gmailAccount") target.gmailAccount = noneToEmpty(answer);
   if (stepId === "importantSignals") {
@@ -1151,6 +1310,8 @@ function buildBrainLoopMessage(kind) {
       "Use the work-agent skill and your own reasoning, not only deterministic keyword matching.",
       "First run `~/.openclaw/tools/openclaw-work-agent run --scheduled light` to collect connector status, threshold candidates, and write the work-vault report.",
       "Then inspect the report and, if useful, use connected tools such as Gmail via gog, Firebase MCP, and the work Obsidian vault to decide whether anything is genuinely important.",
+      "For Firebase rental-marketplace context, check online users, users today, properties/listings updated today, and function/backend errors when tools are available.",
+      "For website context, consider latest blog/review content, latest repo push, conversion opportunities, performance improvements, and SEO suggestions.",
       "Update the work vault with any meaningful finding.",
       "Stay silent unless a real action is needed. Do not send email, mutate Firebase, deploy, delete, or change ad/payment settings without explicit confirmation."
     ].join(" ");
@@ -1160,6 +1321,7 @@ function buildBrainLoopMessage(kind) {
     "Use the work-agent skill and your own reasoning to synthesize the company's current operating context.",
     "First run `~/.openclaw/tools/openclaw-work-agent run --scheduled deep` to collect connector status, threshold candidates, and write the work-vault report.",
     "Then read the latest work-vault report and relevant work memory, inspect connected sources if needed, and update the work brain with decisions, repeated issues, suggested thresholds, and automation candidates.",
+    "Include live business snapshot, repo/content context, product improvement ideas, SEO/content suggestions, and backend/Firebase issues that should be fixed or assigned.",
     "Only notify the user if there is a decision or action worth taking. Do not send external replies or mutate production systems without explicit confirmation."
   ].join(" ");
 }

@@ -102,6 +102,15 @@ OpenClaw handles the internal CLI calls. If onboarding is incomplete, it asks on
 
 Internal commands exist for setup scripts and debugging, but the user should not need them.
 
+After onboarding, `/work` should combine:
+
+- company profile and goals
+- connected Firebase/Gmail/Drive/Obsidian/Telegram sources
+- website URL and local/GitHub repo context
+- latest commit/push and local change state
+- latest blog/review content from the website repo when configured
+- OpenClaw brain checks for online users, today's users, today's property/listing activity, feedback, errors, and improvement ideas
+
 ## Light Monitor, Deep Report, And Candidate Signals
 
 `Work Agent Light Monitor` is the frequent OpenClaw brain loop. It runs every 30 minutes, asks the CLI to collect signals, then OpenClaw reasons over those signals using company context, connected tools, and the work vault. It only notifies when action is required.

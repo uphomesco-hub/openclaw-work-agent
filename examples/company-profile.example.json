@@ -15,6 +15,15 @@
       ],
       "firebaseProject": "example-project-id",
       "gmailAccount": "founder@example.com",
+      "websiteUrl": "https://example.com",
+      "localRepos": [
+        "$HOME/path/to/company-app",
+        "$HOME/path/to/company-website"
+      ],
+      "githubRepos": [
+        "your-org/company-app",
+        "your-org/company-website"
+      ],
       "driveFolders": [
         "https://drive.google.com/drive/folders/example-folder-id"
       ],
