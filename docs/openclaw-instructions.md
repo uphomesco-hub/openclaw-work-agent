@@ -11,6 +11,8 @@ Use these instructions in the OpenClaw workspace when the user asks for `/work`,
 - `/work ask <question>` -> run `~/.openclaw/tools/openclaw-work-agent ask "<question>"`.
 - `/work mode ask` -> run `~/.openclaw/tools/openclaw-work-agent mode ask`.
 - `/work mode full` -> run `~/.openclaw/tools/openclaw-work-agent mode full`.
+- `/work thresholds show` -> run `~/.openclaw/tools/openclaw-work-agent thresholds show`.
+- `/work thresholds set-gmail ...` -> run `~/.openclaw/tools/openclaw-work-agent thresholds set-gmail ...`.
 - `/work cron install` -> run `~/.openclaw/tools/openclaw-work-agent cron install`.
 
 ## Behavior
@@ -22,6 +24,7 @@ Use these instructions in the OpenClaw workspace when the user asks for `/work`,
 - Keep reports evidence-backed. Save durable findings into the configured work-only Obsidian vault, defaulting to `~/Documents/Obsidian-Work-Brain`.
 - When using `openclaw-obsidian` for work-agent queries, point it at the work vault with `OPENCLAW_OBSIDIAN_VAULT` so work memory does not mix with personal memory.
 - Suggest new automations or skills when the same task appears repeatedly.
+- Use thresholds as the first layer of autonomy. If the threshold config is thin, suggest concrete thresholds before adding more automation.
 
 ## Permission Policy
 
@@ -43,6 +46,7 @@ When asking for confirmation, include the exact resource/path, intended change, 
 - Scheduled `/work run --scheduled light` should stay quiet unless there is a clear issue or action needed.
 - Daily deep reports should write to Obsidian and only notify the user with a concise summary when there are decisions to make.
 - Telegram is the default alert channel when configured.
+- Important Gmail/feedback thresholds are configurable with keywords, lookback, and count. Treat matched mail as a signal to update the work brain and propose a reply/action, not as permission to send a reply.
 
 ## UpHomes V1 Focus
 

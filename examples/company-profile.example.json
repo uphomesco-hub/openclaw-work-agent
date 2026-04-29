@@ -34,6 +34,38 @@
         "telegram",
         "meta-ads"
       ],
+      "thresholds": {
+        "gmailImportant": {
+          "enabled": true,
+          "lookback": "1d",
+          "maxResults": 10,
+          "notifyOnCount": 1,
+          "queryTerms": [
+            "feedback",
+            "urgent",
+            "issue",
+            "problem",
+            "bug",
+            "refund",
+            "payment",
+            "not working",
+            "error",
+            "complaint",
+            "support"
+          ]
+        },
+        "firebaseOps": {
+          "enabled": true,
+          "notifyOnFunctionErrors": true,
+          "notifyOnNoOnlineUsers": false,
+          "newPropertyLookbackHours": 24
+        },
+        "reporting": {
+          "lightMonitorWritesReport": true,
+          "deepReportWritesSummary": true,
+          "notifyOnlyWhenActionRequired": true
+        }
+      },
       "approvalPolicy": {
         "defaultMode": "ask",
         "alwaysConfirm": [

@@ -32,6 +32,44 @@ const DEFAULT_CONFIG = {
       obsidianCompanyDir: "",
       metricsToWatch: [],
       connectorsWanted: ["firebase", "gmail", "drive", "obsidian", "telegram", "meta-ads"],
+      thresholds: {
+        gmailImportant: {
+          enabled: true,
+          lookback: "1d",
+          maxResults: 10,
+          notifyOnCount: 1,
+          queryTerms: [
+            "feedback",
+            "urgent",
+            "issue",
+            "problem",
+            "bug",
+            "refund",
+            "payment",
+            "not working",
+            "error",
+            "complaint",
+            "support",
+            "lead",
+            "property",
+            "broker",
+            "brokerage",
+            "crash",
+            "failed"
+          ]
+        },
+        firebaseOps: {
+          enabled: true,
+          notifyOnFunctionErrors: true,
+          notifyOnNoOnlineUsers: false,
+          newPropertyLookbackHours: 24
+        },
+        reporting: {
+          lightMonitorWritesReport: true,
+          deepReportWritesSummary: true,
+          notifyOnlyWhenActionRequired: true
+        }
+      },
       approvalPolicy: {
         defaultMode: "ask",
         alwaysConfirm: [
@@ -154,7 +192,8 @@ function mergeConfig(base, override) {
 
 function activeCompany(config) {
   const key = config.activeCompany || "default";
-  return { key, company: config.companies?.[key] || config.companies?.default || DEFAULT_CONFIG.companies.default };
+  const company = config.companies?.[key] || config.companies?.default || {};
+  return { key, company: mergeConfig(DEFAULT_CONFIG.companies.default, company) };
 }
 
 function extractJsonObject(text) {
@@ -293,6 +332,107 @@ function connectorRows(discovery) {
   ];
 }
 
+function boolValue(value, fallback = false) {
+  return typeof value === "boolean" ? value : fallback;
+}
+
+function numberValue(value, fallback) {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function stringArray(value) {
+  return Array.isArray(value) ? value.map(String).filter(Boolean) : [];
+}
+
+function buildGmailQuery(settings) {
+  const lookback = settings.lookback || "1d";
+  const terms = stringArray(settings.queryTerms);
+  const inner = terms.length ? terms.map((term) => `"${term.replace(/"/g, "")}"`).join(" OR ") : "\"feedback\" OR \"urgent\"";
+  return `newer_than:${lookback} (${inner})`;
+}
+
+function parseGmailTable(stdout) {
+  return stdout
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith("ID "))
+    .map((line) => {
+      const parts = line.split(/\s{2,}/);
+      return {
+        id: parts[0] || "",
+        thread: parts[1] || "",
+        date: parts[2] || "",
+        from: parts[3] || "",
+        subject: parts[4] || "",
+        labels: parts.slice(5).join(" ")
+      };
+    })
+    .filter((item) => item.id && item.subject);
+}
+
+function filterImportantMail(messages, settings) {
+  const terms = stringArray(settings.queryTerms).map((term) => term.toLowerCase());
+  if (!terms.length) return messages;
+  return messages.filter((message) => {
+    const haystack = `${message.from} ${message.subject} ${message.labels}`.toLowerCase();
+    return terms.some((term) => haystack.includes(term));
+  });
+}
+
+function runGmailImportantCheck(company, discovery) {
+  const settings = company.thresholds?.gmailImportant || {};
+  if (!boolValue(settings.enabled, false)) {
+    return { name: "Gmail important mail", enabled: false, ok: true, actionRequired: false, summary: "disabled", items: [] };
+  }
+  if (!discovery.googleWorkspace.connected) {
+    return { name: "Gmail important mail", enabled: true, ok: false, actionRequired: true, summary: "Google Workspace is not connected", items: [] };
+  }
+
+  const account = company.gmailAccount || discovery.googleWorkspace.accounts?.[0]?.email || "";
+  if (!account) {
+    return { name: "Gmail important mail", enabled: true, ok: false, actionRequired: true, summary: "No Gmail account configured", items: [] };
+  }
+
+  const query = buildGmailQuery(settings);
+  const maxResults = String(numberValue(settings.maxResults, 10));
+  const result = run("gog", ["gmail", "messages", "search", query, "--max", maxResults, "--account", account], { timeout: 60000 });
+  if (!result.ok) {
+    return {
+      name: "Gmail important mail",
+      enabled: true,
+      ok: false,
+      actionRequired: true,
+      summary: result.stderr || result.stdout || "Gmail search failed",
+      items: []
+    };
+  }
+
+  const messages = filterImportantMail(parseGmailTable(result.stdout), settings);
+  const notifyOnCount = numberValue(settings.notifyOnCount, 1);
+  return {
+    name: "Gmail important mail",
+    enabled: true,
+    ok: true,
+    actionRequired: messages.length >= notifyOnCount,
+    summary: `${messages.length} important message(s) matched threshold query`,
+    query,
+    items: messages.slice(0, 5)
+  };
+}
+
+function runThresholdChecks(config, discovery, options = {}) {
+  const { company } = activeCompany(config);
+  const checks = [
+    runGmailImportantCheck(company, discovery)
+  ];
+  const actionRequired = checks.some((check) => check.enabled !== false && check.actionRequired);
+  return {
+    mode: options.scheduled ? "scheduled" : "manual",
+    actionRequired,
+    checks
+  };
+}
+
 function printStatus(discovery, asJson = false) {
   if (asJson) {
     console.log(JSON.stringify(discovery, null, 2));
@@ -309,6 +449,7 @@ function printStatus(discovery, asJson = false) {
 function buildReport(config, discovery, options = {}) {
   const { key, company } = activeCompany(config);
   const rows = connectorRows(discovery);
+  const thresholdResult = options.thresholdResult || runThresholdChecks(config, discovery, options);
   const missing = rows.filter(([, ok]) => !ok).map(([name, , via, detail]) => ({ name, via, detail }));
   const goals = company.goals?.length ? company.goals : ["No goals configured yet"];
   const metrics = company.metricsToWatch?.length ? company.metricsToWatch : ["No metrics configured yet"];
@@ -361,6 +502,15 @@ function buildReport(config, discovery, options = {}) {
     "",
     ...metrics.map((metric) => `- ${metric}`),
     "",
+    "## Threshold Checks",
+    "",
+    `- Action required: ${thresholdResult.actionRequired ? "yes" : "no"}`,
+    ...thresholdResult.checks.map((check) => `- ${check.name}: ${check.enabled === false ? "disabled" : check.ok ? "ok" : "error"} - ${check.summary}`),
+    "",
+    "## Important Mail Matches",
+    "",
+    ...formatMailMatches(thresholdResult),
+    "",
     "## V1 UpHomes Ops Checks",
     "",
     "- Firebase: use OpenClaw MCP for users, properties/listings, RTDB presence, Functions logs, Remote Config, and Storage metadata.",
@@ -394,9 +544,22 @@ function buildReport(config, discovery, options = {}) {
       permissionMode: mode,
       missingConnectors: missing.map((m) => m.name),
       actionCandidates,
+      actionRequired: thresholdResult.actionRequired,
+      thresholdChecks: thresholdResult.checks.map((check) => ({
+        name: check.name,
+        ok: check.ok,
+        actionRequired: check.actionRequired,
+        summary: check.summary
+      })),
       reportType: options.scheduled ? "scheduled" : "manual"
     }
   };
+}
+
+function formatMailMatches(thresholdResult) {
+  const gmail = thresholdResult.checks.find((check) => check.name === "Gmail important mail");
+  if (!gmail || !gmail.items?.length) return ["- No important mail matched the current threshold."];
+  return gmail.items.map((item) => `- ${item.date || "unknown date"} - ${item.from || "unknown sender"} - ${item.subject}`);
 }
 
 function sanitizeTable(value) {
@@ -531,6 +694,9 @@ async function initCommand(args) {
     const obsidianCompanyDir = await ask(rl, "Obsidian company folder path", current.obsidianCompanyDir || defaultObsidianCompanyDir(slug));
     const metricsToWatch = await ask(rl, "Metrics to watch, comma-separated", (current.metricsToWatch || []).join(", "));
     const goals = await ask(rl, "Business goals, comma-separated", (current.goals || []).join(", "));
+    const importantTerms = await ask(rl, "Important Gmail terms, comma-separated", (current.thresholds?.gmailImportant?.queryTerms || DEFAULT_CONFIG.companies.default.thresholds.gmailImportant.queryTerms).join(", "));
+    const gmailLookback = await ask(rl, "Important Gmail lookback, for example 1d or 7d", current.thresholds?.gmailImportant?.lookback || "1d");
+    const gmailNotifyOnCount = await ask(rl, "Notify/action threshold for important Gmail count", String(current.thresholds?.gmailImportant?.notifyOnCount ?? 1));
     rl.close();
 
     config.activeCompany = slug;
@@ -546,7 +712,16 @@ async function initCommand(args) {
         driveFolders: splitList(driveFolders),
         obsidianCompanyDir: obsidianCompanyDir.trim(),
         metricsToWatch: splitList(metricsToWatch),
-        goals: splitList(goals)
+        goals: splitList(goals),
+        thresholds: {
+          ...(current.thresholds || DEFAULT_CONFIG.companies.default.thresholds),
+          gmailImportant: {
+            ...(current.thresholds?.gmailImportant || DEFAULT_CONFIG.companies.default.thresholds.gmailImportant),
+            queryTerms: splitList(importantTerms),
+            lookback: gmailLookback.trim() || "1d",
+            notifyOnCount: Number.parseInt(gmailNotifyOnCount, 10) || 1
+          }
+        }
       }
     };
   }
@@ -610,16 +785,21 @@ function statusCommand(args) {
 function runCommand(args) {
   const { config } = loadConfig(args);
   const discovery = discoverConnectors(config);
-  const report = buildReport(config, discovery, {
+  const thresholdResult = runThresholdChecks(config, discovery, {
     dryRun: Boolean(args["dry-run"]),
     scheduled: Boolean(args.scheduled)
+  });
+  const report = buildReport(config, discovery, {
+    dryRun: Boolean(args["dry-run"]),
+    scheduled: Boolean(args.scheduled),
+    thresholdResult
   });
   const file = writeReport(config, report);
   console.log(`Wrote report: ${file}`);
 
   const shouldNotify = Boolean(args.notify)
     || (!args["dry-run"] && !args.scheduled && Boolean(config.notifyTarget))
-    || (!args["dry-run"] && args.scheduled && !config.quietScheduledRuns && Boolean(config.notifyTarget));
+    || (!args["dry-run"] && args.scheduled && thresholdResult.actionRequired && Boolean(config.notifyTarget));
 
   if (shouldNotify) {
     const sent = sendTelegram(config, buildTelegramSummary(report, file));
@@ -629,6 +809,35 @@ function runCommand(args) {
   } else if (args.scheduled) {
     console.log("Scheduled run: quiet mode, no notification sent.");
   }
+}
+
+function thresholdsCommand(args) {
+  const sub = args._[1] || "show";
+  const { config, configPath } = loadConfig(args);
+  const { company } = activeCompany(config);
+  if (sub === "show") {
+    console.log(JSON.stringify(company.thresholds || {}, null, 2));
+    return;
+  }
+  if (sub === "set-gmail") {
+    const terms = args.terms ? splitList(args.terms) : null;
+    const lookback = args.lookback ? String(args.lookback) : null;
+    const notifyOnCount = args.count ? Number.parseInt(String(args.count), 10) : null;
+    const key = config.activeCompany || "default";
+    config.companies[key].thresholds = config.companies[key].thresholds || structuredClone(DEFAULT_CONFIG.companies.default.thresholds);
+    config.companies[key].thresholds.gmailImportant = {
+      ...DEFAULT_CONFIG.companies.default.thresholds.gmailImportant,
+      ...(config.companies[key].thresholds.gmailImportant || {}),
+      ...(terms ? { queryTerms: terms } : {}),
+      ...(lookback ? { lookback } : {}),
+      ...(notifyOnCount ? { notifyOnCount } : {})
+    };
+    writeJson(configPath, config);
+    console.log("Updated Gmail important-mail threshold.");
+    console.log(JSON.stringify(config.companies[key].thresholds.gmailImportant, null, 2));
+    return;
+  }
+  fail("Usage: openclaw-work-agent thresholds show | thresholds set-gmail --terms \"feedback,bug\" --lookback 1d --count 1");
 }
 
 function askCommand(args) {
@@ -724,6 +933,8 @@ Usage:
   openclaw-work-agent run [--dry-run] [--scheduled] [--notify]
   openclaw-work-agent ask <question>
   openclaw-work-agent mode ask|full
+  openclaw-work-agent thresholds show
+  openclaw-work-agent thresholds set-gmail --terms "feedback,bug,refund" --lookback 1d --count 1
   openclaw-work-agent cron install
 
 Runtime:
@@ -741,6 +952,7 @@ async function main() {
   if (command === "run") return runCommand(args);
   if (command === "ask") return askCommand(args);
   if (command === "mode") return modeCommand(args);
+  if (command === "thresholds") return thresholdsCommand(args);
   if (command === "cron") return cronCommand(args);
   fail(`Unknown command: ${command}`);
 }

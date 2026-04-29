@@ -26,6 +26,8 @@ This skill turns OpenClaw into a company operating agent. It uses installed MCPs
 - `/work ask <question>`: answer from the company brain and connected sources.
 - `/work mode ask`: use ask-then-execute mode.
 - `/work mode full`: enable full-access mode with confirmation guardrails.
+- `/work thresholds show`: inspect configured business thresholds.
+- `/work thresholds set-gmail ...`: update important-mail threshold terms, lookback, or count.
 - `/work cron install`: install scheduled light and daily checks.
 
 ## Permission Boundary
@@ -60,3 +62,16 @@ Reports should be short, evidence-backed, and decision-oriented:
 - What needs a decision
 - What can be automated next
 - What source/tool was used
+
+## Thresholds
+
+Light monitor is the frequent threshold loop. Deep report is the daily synthesis.
+
+Use thresholds for:
+
+- important Gmail/feedback detection
+- backend error checks
+- sudden activity changes
+- repeated manual work that should become a skill
+
+When a threshold fires, update the work vault and propose the next action. Do not send external replies or mutate production systems without the permission policy above.

@@ -100,6 +100,8 @@ openclaw-work-agent run --notify
 openclaw-work-agent ask "what do we know about refund handling?"
 openclaw-work-agent mode ask
 openclaw-work-agent mode full
+openclaw-work-agent thresholds show
+openclaw-work-agent thresholds set-gmail --terms "feedback,bug,refund,not working" --lookback 1d --count 1
 openclaw-work-agent cron install
 ```
 
@@ -113,8 +115,31 @@ OpenClaw command mapping:
 /work ask what changed in support this week?
 /work mode ask
 /work mode full
+/work thresholds show
 /work cron install
 ```
+
+## Light Monitor, Deep Report, And Thresholds
+
+`Work Agent Light Monitor` is the frequent loop. It runs every 30 minutes and should check narrow signals such as important support/feedback mail, obvious backend errors, and configured metric thresholds. It only notifies when action is required.
+
+`Work Agent Daily Deep Report` is the daily synthesis. It runs at 09:15 Asia/Kolkata, writes the work-vault report, and should summarize context, repeated issues, automation candidates, and suggested next thresholds.
+
+V1 includes configurable important-mail thresholds:
+
+```json
+{
+  "gmailImportant": {
+    "enabled": true,
+    "lookback": "1d",
+    "maxResults": 10,
+    "notifyOnCount": 1,
+    "queryTerms": ["feedback", "bug", "refund", "not working"]
+  }
+}
+```
+
+The Gmail check first asks Gmail for likely messages, then filters locally by configured terms so unrelated promotional mail does not become an important alert.
 
 ## Permission Model
 
@@ -145,6 +170,8 @@ This creates:
 - `Work Agent Daily Deep Report`: daily at 09:15 Asia/Kolkata
 
 Scheduled runs are quiet by default. Reports are written to the configured Obsidian company folder. Telegram is used for concise notifications when configured and when a run is not quiet.
+
+For scheduled runs, Telegram is sent only when thresholds say action is required.
 
 ## UpHomes Validation Profile
 
