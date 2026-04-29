@@ -27,6 +27,7 @@ Use these instructions in the OpenClaw workspace when the user asks for `/work`,
 - For GitHub/local repo context, include latest push/commit, branch, dirty state, and whether a backend/app fix should be assigned or can be handled through the Codex CLI wrapper.
 - If a connector is missing, say it is missing and give short setup steps. Do not pretend it is connected.
 - When the user names a new system, ask whether to connect it and explain the shortest path: MCP/API/OAuth/CLI/local repo/manual export, read scope, write permissions, and approval boundary.
+- Missing connectors are setup context only. Do not send Telegram/background notifications just because Meta Ads, mcporter, or any optional connector is missing.
 - Keep reports evidence-backed. Save durable findings into the configured work-only Obsidian vault, defaulting to `~/Documents/Obsidian-Work-Brain`.
 - When using `openclaw-obsidian` for work-agent queries, point it at the work vault with `OPENCLAW_OBSIDIAN_VAULT` so work memory does not mix with personal memory.
 - Suggest new automations or skills when the same task appears repeatedly.
@@ -76,6 +77,7 @@ If the user approves a fix and the work is coding-related, use the configured Co
 - The CLI collects connector status, candidates, and reports; OpenClaw then reasons over those candidates using company context, connected tools, and the work vault.
 - Scheduled light monitor should stay quiet unless OpenClaw judges there is a clear issue or action needed.
 - Daily deep report should write to Obsidian, synthesize context, suggest thresholds/automations, update playbooks, and only notify the user when there are decisions to make.
+- Notifications should be based on connected-source findings, not connector gaps. Missing setup can stay in the Obsidian report or be shown when the user asks for setup/status.
 - Telegram is the default alert channel when configured.
 - Important Gmail/feedback thresholds are candidate generators. OpenClaw must semantically judge whether matched mail is truly important before suggesting action.
 

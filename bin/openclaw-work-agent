@@ -551,16 +551,7 @@ function buildReport(config, discovery, options = {}) {
   const decisionRules = company.decisionRules?.length ? company.decisionRules : ["No decision rules configured yet"];
   const mode = config.permissionMode === "full" ? "full-access" : "ask-then-execute";
 
-  const actionCandidates = [];
-  if (!discovery.metaAds.connected) {
-    actionCandidates.push("Connect a Meta Ads MCP/API source before asking for ad strategy or spend optimization.");
-  }
-  if (!discovery.googleWorkspace.connected) {
-    actionCandidates.push("Run Google Workspace auth setup with `gog auth add ...` for Gmail/Drive checks.");
-  }
-  if (!discovery.firebase.connected) {
-    actionCandidates.push("Connect Firebase MCP through OpenClaw before live app/database checks.");
-  }
+  const actionCandidates = connectedSourceActionCandidates(thresholdResult);
   if (!company.goals?.length) {
     actionCandidates.push("Add 3-5 business goals so the agent can judge whether anomalies matter.");
   }
@@ -659,17 +650,15 @@ function buildReport(config, discovery, options = {}) {
     "",
     ...formatMailMatches(thresholdResult),
     "",
-    "## V1 UpHomes Ops Checks",
+    "## Connected Source Focus",
     "",
-    "- Firebase: use OpenClaw MCP for users, properties/listings, RTDB presence, Functions logs, Remote Config, and Storage metadata.",
-    "- Gmail: use `gog` for support, feedback, billing, and partnership emails.",
-    "- Drive: use `gog` for selected docs/folders and operating notes.",
-    "- Obsidian: use the company wiki folder as the durable operating memory.",
-    "- Meta Ads: report as missing until a real connector is added.",
+    "- Use only connected sources for operational findings and notifications.",
+    "- Missing connectors are setup context only. Do not notify the user just because a connector is missing.",
+    "- If connected sources have no important changes, keep the scheduled run quiet.",
     "",
-    "## Action Candidates",
+    "## Connected-Source Findings",
     "",
-    ...(actionCandidates.length ? actionCandidates.map((item) => `- ${item}`) : ["- No connector blockers found. Next scheduled runs should focus on live business anomalies."]),
+    ...(actionCandidates.length ? actionCandidates.map((item) => `- ${item}`) : ["- No action needed from connected sources in this CLI snapshot."]),
     "",
     "## Permission Boundary",
     "",
@@ -703,6 +692,20 @@ function buildReport(config, discovery, options = {}) {
       reportType: options.scheduled ? "scheduled" : "manual"
     }
   };
+}
+
+function connectedSourceActionCandidates(thresholdResult) {
+  const actions = [];
+  for (const check of thresholdResult.checks || []) {
+    if (check.enabled === false) continue;
+    if (!check.actionRequired) continue;
+    if (check.name === "Gmail important mail" && check.items?.length) {
+      actions.push(`${check.items.length} important Gmail/support candidate(s) need review.`);
+      continue;
+    }
+    actions.push(`${check.name}: ${check.summary || "action required"}`);
+  }
+  return actions;
 }
 
 function formatSourceContextReport(sourceContext) {
@@ -911,15 +914,14 @@ function sendTelegram(config, text) {
 }
 
 function buildTelegramSummary(report, file) {
-  const missing = report.summary.missingConnectors.length ? report.summary.missingConnectors.join(", ") : "none";
-  const actions = report.summary.actionCandidates.slice(0, 3).map((item) => `- ${item}`).join("\n") || "- No connector blockers found.";
+  const actions = report.summary.actionCandidates.slice(0, 5).map((item) => `- ${item}`).join("\n")
+    || "- No urgent connected-source findings.";
   return [
-    `Ops Brain report for ${report.summary.company}`,
+    `Ops Brain connected-source report for ${report.summary.company}`,
     `Mode: ${report.summary.permissionMode}`,
-    `Missing connectors: ${missing}`,
     `Report: ${file}`,
     "",
-    "Suggested actions:",
+    "Findings:",
     actions
   ].join("\n");
 }
@@ -1424,7 +1426,6 @@ function runCommand(args) {
   console.log(`Wrote report: ${file}`);
 
   const shouldNotify = Boolean(args.notify)
-    || (!args["dry-run"] && !args.scheduled && Boolean(config.notifyTarget))
     || (!args["dry-run"] && args.scheduled && thresholdResult.actionRequired && Boolean(config.notifyTarget));
 
   if (shouldNotify) {
@@ -1608,7 +1609,7 @@ function buildBrainLoopMessage(kind) {
       "For Firebase rental-marketplace context, check online users, users today, properties/listings updated today, and function/backend errors when tools are available.",
       "For website context, consider latest blog/review content, latest repo push, conversion opportunities, performance improvements, and SEO suggestions.",
       "Update the work vault with any meaningful finding and record a closed-loop learning note if this task revealed a faster path, repeated steps, or a useful playbook.",
-      "Stay silent unless a real action is needed. Do not send email, mutate Firebase, deploy, delete, or change ad/payment settings without explicit confirmation."
+      "Stay silent unless a real connected-source action is needed. Do not notify only for missing optional connectors. Do not send email, mutate Firebase, deploy, delete, or change ad/payment settings without explicit confirmation."
     ].join(" ");
   }
   return [
@@ -1617,7 +1618,7 @@ function buildBrainLoopMessage(kind) {
     "First run `~/.openclaw/tools/openclaw-work-agent run --scheduled deep` to collect connector status, threshold candidates, and write the work-vault report.",
     "Then read the latest work-vault report, playbooks, and relevant work memory, inspect connected sources if needed, and update the work brain with decisions, repeated issues, suggested thresholds, connector setup steps, faster paths, and automation candidates.",
     "Include full company-map gaps, live business snapshot, repo/content context, product improvement ideas, SEO/content suggestions, and backend/Firebase issues that should be fixed or assigned.",
-    "Only notify the user if there is a decision or action worth taking. Do not send external replies or mutate production systems without explicit confirmation."
+    "Only notify the user if connected sources show a decision or action worth taking. Do not notify only for missing optional connectors. Do not send external replies or mutate production systems without explicit confirmation."
   ].join(" ");
 }
 

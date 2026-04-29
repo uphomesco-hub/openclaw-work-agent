@@ -193,7 +193,7 @@ The installer or OpenClaw can create scheduled checks internally:
 
 Scheduled runs are quiet by default. Reports are written to the configured Obsidian company folder. Telegram is used for concise notifications when configured and when a run is not quiet.
 
-For scheduled runs, Telegram is sent only when thresholds say action is required.
+For scheduled runs, Telegram is sent only when connected sources produce a real finding or threshold says action is required. Missing connectors are setup context only; they stay in reports/status output and do not trigger alerts. Manual `run` commands also stay local unless `--notify` is explicitly passed.
 
 ## UpHomes Validation Profile
 

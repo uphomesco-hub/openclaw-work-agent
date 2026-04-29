@@ -56,6 +56,8 @@ Use the installed agent profile for behavior and safety rules:
 
 If the CLI says onboarding is complete, do not stop there. Use OpenClaw brain/tool access to inspect connected sources when useful: Firebase, Gmail, Drive, Obsidian, website files, GitHub/local repos, Telegram, and any installed MCPs. Build a short live company snapshot before replying.
 
+Do not notify the user just because an optional connector is missing. Missing connectors are setup context only. Telegram/background updates should contain connected-source findings, decisions needed, or urgent issues.
+
 After meaningful work, update the closed-loop learning memory with:
 
 ```bash

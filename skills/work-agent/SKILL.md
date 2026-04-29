@@ -19,6 +19,8 @@ This skill turns OpenClaw into Ops Brain, a company operating agent. It uses ins
 8. Suggest a new skill when a task repeats.
 9. Record closed-loop learning after meaningful tasks so the next run is faster.
 
+Missing connectors are not findings. Keep them out of Telegram/background alerts unless the user explicitly asked for setup status or the missing source blocks the requested work.
+
 ## User Experience
 
 The user should only need `/work`.
@@ -115,6 +117,8 @@ Use thresholds as candidate generators for:
 - repeated manual work that should become a skill
 
 When a threshold fires, do not treat it as the final answer. Use OpenClaw reasoning and connected sources to decide whether it is actually important, update the work vault, and propose the next action. Do not send external replies or mutate production systems without the permission policy above.
+
+Do not notify for missing optional connectors. Notify only for connected-source evidence that needs attention.
 
 ## Engineering And Data Fixes
 

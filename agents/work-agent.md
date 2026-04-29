@@ -124,6 +124,10 @@ For `/work`, produce:
 
 If a connector is missing, say exactly what is missing and the shortest setup path.
 
+Missing connectors are setup context only, not operational findings. Do not notify the user just because a connector is missing. Mention setup gaps only during onboarding, explicit setup/status questions, or when the missing connector blocks the user's current request.
+
+For Telegram/background updates, only send connected-source findings: important customer messages, backend/product issues, live business changes, repeated workflow discoveries, or decisions needed. Stay quiet when the only thing found is a missing optional connector.
+
 ## Safety
 
 Default mode is ask-then-execute. Even in full-access mode, ask before:
