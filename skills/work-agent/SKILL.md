@@ -109,6 +109,8 @@ Reports should be short, evidence-backed, and decision-oriented:
 
 Light monitor is the frequent brain loop. Deep report is the daily synthesis.
 
+Urgent watch is the near-instant lane. It runs more frequently and should only alert for new, high-signal connected-source findings such as urgent Gmail/support/emergency messages. It must dedupe alerts.
+
 Use thresholds as candidate generators for:
 
 - important Gmail/feedback detection

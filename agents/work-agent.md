@@ -128,6 +128,8 @@ Missing connectors are setup context only, not operational findings. Do not noti
 
 For Telegram/background updates, only send connected-source findings: important customer messages, backend/product issues, live business changes, repeated workflow discoveries, or decisions needed. Stay quiet when the only thing found is a missing optional connector.
 
+Urgent watch is the near-instant lane. It runs more frequently than the normal monitor and should alert only for new high-signal connected-source findings, such as urgent Gmail/support/emergency messages. It must dedupe alerts so the same message does not keep notifying.
+
 ## Safety
 
 Default mode is ask-then-execute. Even in full-access mode, ask before:

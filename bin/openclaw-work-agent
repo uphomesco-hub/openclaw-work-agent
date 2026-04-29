@@ -13,6 +13,7 @@ const DEFAULT_WORKSPACE_DIR = expand(process.env.OPENCLAW_WORKSPACE_DIR || "~/.o
 const DEFAULT_CONFIG_PATH = path.join(DEFAULT_STATE_DIR, "config.json");
 const DEFAULT_REPORTS_DIR = path.join(DEFAULT_STATE_DIR, "reports");
 const DEFAULT_LOG_PATH = path.join(DEFAULT_STATE_DIR, "events.jsonl");
+const DEFAULT_URGENT_SEEN_PATH = path.join(DEFAULT_STATE_DIR, "urgent-seen.json");
 const DEFAULT_WORK_VAULT_DIR = expand(process.env.OPENCLAW_WORK_VAULT_DIR || "~/Documents/Obsidian-Work-Brain");
 
 const DEFAULT_CONFIG = {
@@ -72,6 +73,37 @@ const DEFAULT_CONFIG = {
             "brokerage",
             "crash",
             "failed"
+          ]
+        },
+        gmailUrgent: {
+          enabled: true,
+          lookback: "1d",
+          maxResults: 10,
+          notifyOnCount: 1,
+          queryTerms: [
+            "urgent",
+            "emergency",
+            "not working",
+            "app not working",
+            "payment failed",
+            "refund",
+            "complaint",
+            "angry",
+            "legal",
+            "fraud",
+            "security",
+            "bug",
+            "crash",
+            "down",
+            "error",
+            "failed",
+            "support"
+          ],
+          ignoreTerms: [
+            "furlenco",
+            "receipt",
+            "invoice paid",
+            "payment received"
           ]
         },
         firebaseOps: {
@@ -440,6 +472,18 @@ function buildGmailQuery(settings) {
   return `newer_than:${lookback} (${inner})`;
 }
 
+function urgentSeenKey(company, account) {
+  return `${company.slug || company.name || "company"}:${account || "gmail"}`;
+}
+
+function readUrgentSeen() {
+  return readJson(DEFAULT_URGENT_SEEN_PATH, {});
+}
+
+function writeUrgentSeen(seen) {
+  writeJson(DEFAULT_URGENT_SEEN_PATH, seen);
+}
+
 function parseGmailTable(stdout) {
   return stdout
     .split(/\r?\n/)
@@ -461,25 +505,27 @@ function parseGmailTable(stdout) {
 
 function filterImportantMail(messages, settings) {
   const terms = stringArray(settings.queryTerms).map((term) => term.toLowerCase());
-  if (!terms.length) return messages;
+  const ignoreTerms = stringArray(settings.ignoreTerms).map((term) => term.toLowerCase());
   return messages.filter((message) => {
     const haystack = `${message.from} ${message.subject} ${message.labels}`.toLowerCase();
+    if (ignoreTerms.some((term) => haystack.includes(term))) return false;
+    if (!terms.length) return true;
     return terms.some((term) => haystack.includes(term));
   });
 }
 
-function runGmailImportantCheck(company, discovery) {
-  const settings = company.thresholds?.gmailImportant || {};
+function runGmailCheck(company, discovery, settings, options = {}) {
+  const checkName = options.name || "Gmail important mail";
   if (!boolValue(settings.enabled, false)) {
-    return { name: "Gmail important mail", enabled: false, ok: true, actionRequired: false, summary: "disabled", items: [] };
+    return { name: checkName, enabled: false, ok: true, actionRequired: false, summary: "disabled", items: [] };
   }
   if (!discovery.googleWorkspace.connected) {
-    return { name: "Gmail important mail", enabled: true, ok: false, actionRequired: true, summary: "Google Workspace is not connected", items: [] };
+    return { name: checkName, enabled: true, ok: false, actionRequired: false, summary: "Google Workspace is not connected", items: [] };
   }
 
   const account = company.gmailAccount || discovery.googleWorkspace.accounts?.[0]?.email || "";
   if (!account) {
-    return { name: "Gmail important mail", enabled: true, ok: false, actionRequired: true, summary: "No Gmail account configured", items: [] };
+    return { name: checkName, enabled: true, ok: false, actionRequired: false, summary: "No Gmail account configured", items: [] };
   }
 
   const query = buildGmailQuery(settings);
@@ -487,33 +533,75 @@ function runGmailImportantCheck(company, discovery) {
   const result = run("gog", ["gmail", "messages", "search", query, "--max", maxResults, "--account", account], { timeout: 60000 });
   if (!result.ok) {
     return {
-      name: "Gmail important mail",
+      name: checkName,
       enabled: true,
       ok: false,
-      actionRequired: true,
+      actionRequired: false,
       summary: result.stderr || result.stdout || "Gmail search failed",
       items: []
     };
   }
 
-  const messages = filterImportantMail(parseGmailTable(result.stdout), settings);
+  let messages = filterImportantMail(parseGmailTable(result.stdout), settings);
+  const seenKey = urgentSeenKey(company, account);
+  if (options.dedupe) {
+    const seen = readUrgentSeen();
+    const seenIds = new Set(seen[seenKey]?.ids || []);
+    messages = messages.filter((message) => !seenIds.has(message.id));
+  }
   const notifyOnCount = numberValue(settings.notifyOnCount, 1);
   return {
-    name: "Gmail important mail",
+    name: checkName,
     enabled: true,
     ok: true,
     actionRequired: messages.length >= notifyOnCount,
-    summary: `${messages.length} important message(s) matched threshold query`,
+    summary: `${messages.length} ${options.dedupe ? "new " : ""}${checkName.toLowerCase()} message(s) matched threshold query`,
     query,
+    account,
+    seenKey,
+    dedupe: Boolean(options.dedupe),
     items: messages.slice(0, 5)
   };
 }
 
+function runGmailImportantCheck(company, discovery) {
+  return runGmailCheck(company, discovery, company.thresholds?.gmailImportant || {}, {
+    name: "Gmail important mail"
+  });
+}
+
+function runGmailUrgentCheck(company, discovery, options = {}) {
+  return runGmailCheck(company, discovery, company.thresholds?.gmailUrgent || {}, {
+    name: "Gmail urgent watch",
+    dedupe: Boolean(options.dedupe)
+  });
+}
+
+function markSeenFromThresholds(thresholdResult) {
+  const seen = readUrgentSeen();
+  let changed = false;
+  for (const check of thresholdResult.checks || []) {
+    if (!check.dedupe || !check.seenKey || !check.items?.length) continue;
+    const current = seen[check.seenKey] || { ids: [] };
+    const ids = new Set(current.ids || []);
+    for (const item of check.items) {
+      if (item.id) ids.add(item.id);
+    }
+    seen[check.seenKey] = {
+      updatedAt: nowIso(),
+      ids: [...ids].slice(-500)
+    };
+    changed = true;
+  }
+  if (changed) writeUrgentSeen(seen);
+}
+
 function runThresholdChecks(config, discovery, options = {}) {
   const { company } = activeCompany(config);
-  const checks = [
-    runGmailImportantCheck(company, discovery)
-  ];
+  const scheduledKind = typeof options.scheduled === "string" ? options.scheduled : "";
+  const checks = scheduledKind === "urgent"
+    ? [runGmailUrgentCheck(company, discovery, { dedupe: !options.dryRun })]
+    : [runGmailImportantCheck(company, discovery)];
   const actionRequired = checks.some((check) => check.enabled !== false && check.actionRequired);
   return {
     mode: options.scheduled ? "scheduled" : "manual",
@@ -699,8 +787,8 @@ function connectedSourceActionCandidates(thresholdResult) {
   for (const check of thresholdResult.checks || []) {
     if (check.enabled === false) continue;
     if (!check.actionRequired) continue;
-    if (check.name === "Gmail important mail" && check.items?.length) {
-      actions.push(`${check.items.length} important Gmail/support candidate(s) need review.`);
+    if ((check.name === "Gmail important mail" || check.name === "Gmail urgent watch") && check.items?.length) {
+      actions.push(`${check.items.length} ${check.name === "Gmail urgent watch" ? "new urgent" : "important"} Gmail/support candidate(s) need review.`);
       continue;
     }
     actions.push(`${check.name}: ${check.summary || "action required"}`);
@@ -1413,13 +1501,14 @@ function statusCommand(args) {
 function runCommand(args) {
   const { config } = loadConfig(args);
   const discovery = discoverConnectors(config);
+  const scheduledMode = typeof args.scheduled === "string" ? args.scheduled : Boolean(args.scheduled);
   const thresholdResult = runThresholdChecks(config, discovery, {
     dryRun: Boolean(args["dry-run"]),
-    scheduled: Boolean(args.scheduled)
+    scheduled: scheduledMode
   });
   const report = buildReport(config, discovery, {
     dryRun: Boolean(args["dry-run"]),
-    scheduled: Boolean(args.scheduled),
+    scheduled: scheduledMode,
     thresholdResult
   });
   const file = writeReport(config, report);
@@ -1430,6 +1519,7 @@ function runCommand(args) {
 
   if (shouldNotify) {
     const sent = sendTelegram(config, buildTelegramSummary(report, file));
+    if (sent.ok) markSeenFromThresholds(thresholdResult);
     console.log(sent.ok ? "Sent notification." : `Notification skipped: ${sent.reason}`);
   } else if (args["dry-run"]) {
     console.log("Dry run: no external notification sent.");
@@ -1563,13 +1653,21 @@ function cronCommand(args) {
   const existing = run("openclaw", ["cron", "list"], { timeout: 30000 }).stdout || "";
   const jobs = [
     {
+      name: "Ops Brain Urgent Watch",
+      every: "1m",
+      timeoutSeconds: "120",
+      message: buildBrainLoopMessage("urgent")
+    },
+    {
       name: "Ops Brain Light Monitor",
       every: "30m",
+      timeoutSeconds: "600",
       message: buildBrainLoopMessage("light")
     },
     {
       name: "Ops Brain Daily Deep Report",
       cron: "15 9 * * *",
+      timeoutSeconds: "600",
       message: buildBrainLoopMessage("deep")
     }
   ];
@@ -1588,7 +1686,7 @@ function cronCommand(args) {
       "--to", target.target,
       "--no-deliver",
       "--best-effort-deliver",
-      "--timeout-seconds", "600"
+      "--timeout-seconds", job.timeoutSeconds || "600"
     ];
     if (job.every) addArgs.push("--every", job.every);
     if (job.cron) addArgs.push("--cron", job.cron, "--tz", "Asia/Kolkata");
@@ -1598,6 +1696,16 @@ function cronCommand(args) {
 }
 
 function buildBrainLoopMessage(kind) {
+  if (kind === "urgent") {
+    return [
+      "Run the OpenClaw Ops Brain urgent watch.",
+      "This is the near-instant lane for useful or emergency connected-source findings.",
+      "First run `~/.openclaw/tools/openclaw-work-agent run --scheduled urgent` to check high-signal sources such as Gmail/support with dedupe.",
+      "If the CLI sends a Telegram alert, stop after writing any useful learning note.",
+      "If it only writes a report and no new urgent connected-source finding exists, stay silent.",
+      "Do not notify for missing optional connectors. Do not send external replies or mutate production systems without explicit confirmation."
+    ].join(" ");
+  }
   if (kind === "light") {
     return [
       "Run the OpenClaw Ops Brain light monitor.",

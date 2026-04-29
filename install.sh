@@ -58,6 +58,8 @@ If the CLI says onboarding is complete, do not stop there. Use OpenClaw brain/to
 
 Do not notify the user just because an optional connector is missing. Missing connectors are setup context only. Telegram/background updates should contain connected-source findings, decisions needed, or urgent issues.
 
+Urgent watch is the near-instant lane. It should run every few minutes, dedupe alerts, and notify only for new high-signal connected-source findings such as urgent Gmail/support/emergency messages.
+
 After meaningful work, update the closed-loop learning memory with:
 
 ```bash

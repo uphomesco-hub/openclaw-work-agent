@@ -188,10 +188,13 @@ Confirmation should include the exact target, intended change, and likely impact
 
 The installer or OpenClaw can create scheduled checks internally:
 
+- `Ops Brain Urgent Watch`: every 1 minute for high-signal mail/support/emergency findings
 - `Ops Brain Light Monitor`: every 30 minutes
 - `Ops Brain Daily Deep Report`: daily at 09:15 Asia/Kolkata
 
 Scheduled runs are quiet by default. Reports are written to the configured Obsidian company folder. Telegram is used for concise notifications when configured and when a run is not quiet.
+
+Urgent watch is near-instant polling, not true webhook push. With the default 1-minute interval, a new important Gmail/support message should usually be detected within about a minute. True instant delivery requires source-specific webhooks such as Gmail push/watch.
 
 For scheduled runs, Telegram is sent only when connected sources produce a real finding or threshold says action is required. Missing connectors are setup context only; they stay in reports/status output and do not trigger alerts. Manual `run` commands also stay local unless `--notify` is explicitly passed.
 

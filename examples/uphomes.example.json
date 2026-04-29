@@ -119,6 +119,32 @@
             "brokerage"
           ]
         },
+        "gmailUrgent": {
+          "enabled": true,
+          "lookback": "1d",
+          "maxResults": 10,
+          "notifyOnCount": 1,
+          "queryTerms": [
+            "urgent",
+            "emergency",
+            "not working",
+            "payment failed",
+            "refund",
+            "complaint",
+            "security",
+            "bug",
+            "crash",
+            "down",
+            "error",
+            "support"
+          ],
+          "ignoreTerms": [
+            "furlenco",
+            "receipt",
+            "invoice paid",
+            "payment received"
+          ]
+        },
         "firebaseOps": {
           "enabled": true,
           "notifyOnFunctionErrors": true,
