@@ -4,6 +4,9 @@ Reusable OpenClaw add-on for a `/work` company agent.
 
 It gives OpenClaw a company operating layer that can:
 
+- install a named Work Agent profile for OpenClaw
+- ask one plain-English onboarding question at a time
+- build a company operating map across customers, product surfaces, workflows, growth, risks, and decision rules
 - detect connected company sources
 - keep a local company profile
 - write Obsidian-backed work reports into a dedicated work-only vault
@@ -37,6 +40,7 @@ This installs:
 
 ```text
 ~/.openclaw/tools/openclaw-work-agent
+~/.openclaw/workspace/agents/work-agent.md
 ~/.openclaw/workspace/skills/work-agent/SKILL.md
 ~/.openclaw/work-agent/config.json
 ~/Documents/Obsidian-Work-Brain/
@@ -105,11 +109,14 @@ Internal commands exist for setup scripts and debugging, but the user should not
 After onboarding, `/work` should combine:
 
 - company profile and goals
+- customers, product surfaces, critical workflows, growth channels, risks, and decision rules
 - connected Firebase/Gmail/Drive/Obsidian/Telegram sources
 - website URL and local/GitHub repo context
 - latest commit/push and local change state
 - latest blog/review content from the website repo when configured
 - OpenClaw brain checks for online users, today's users, today's property/listing activity, feedback, errors, and improvement ideas
+
+The CLI is only the local memory and signal collector. OpenClaw is the brain. Once the setup questions are answered, OpenClaw should use the installed agent profile at `~/.openclaw/workspace/agents/work-agent.md` and inspect connected tools before forming the live company snapshot.
 
 ## Light Monitor, Deep Report, And Candidate Signals
 

@@ -6,13 +6,15 @@ TOOLS_DIR="${OPENCLAW_TOOLS_DIR:-$HOME/.openclaw/tools}"
 WORKSPACE_DIR="${OPENCLAW_WORKSPACE_DIR:-$HOME/.openclaw/workspace}"
 STATE_DIR="${OPENCLAW_WORK_AGENT_DIR:-$HOME/.openclaw/work-agent}"
 SKILLS_DIR="$WORKSPACE_DIR/skills"
+AGENTS_DIR="$WORKSPACE_DIR/agents"
 
-mkdir -p "$TOOLS_DIR" "$STATE_DIR" "$SKILLS_DIR"
+mkdir -p "$TOOLS_DIR" "$STATE_DIR" "$SKILLS_DIR" "$AGENTS_DIR"
 
 install -m 755 "$ROOT/bin/openclaw-work-agent" "$TOOLS_DIR/openclaw-work-agent"
 rm -rf "$SKILLS_DIR/work-agent"
 mkdir -p "$SKILLS_DIR/work-agent"
 install -m 644 "$ROOT/skills/work-agent/SKILL.md" "$SKILLS_DIR/work-agent/SKILL.md"
+install -m 644 "$ROOT/agents/work-agent.md" "$AGENTS_DIR/work-agent.md"
 
 if [[ ! -f "$STATE_DIR/config.json" ]]; then
   "$TOOLS_DIR/openclaw-work-agent" init --from "$ROOT/examples/company-profile.example.json" --yes
@@ -21,12 +23,16 @@ fi
 AGENTS_MD="$WORKSPACE_DIR/AGENTS.md"
 TOOLS_MD="$WORKSPACE_DIR/TOOLS.md"
 
-if [[ -f "$AGENTS_MD" ]] && ! grep -q "### OpenClaw Work Agent" "$AGENTS_MD"; then
+if [[ -f "$AGENTS_MD" ]]; then
+  TMP_AGENTS="$(mktemp)"
+  sed '/### OpenClaw Work Agent/,/### End OpenClaw Work Agent/d' "$AGENTS_MD" > "$TMP_AGENTS"
+  cat "$TMP_AGENTS" > "$AGENTS_MD"
+  rm -f "$TMP_AGENTS"
   cat >> "$AGENTS_MD" <<'EOF'
 
 ### OpenClaw Work Agent
 
-The only user-facing command is `/work`.
+The only user-facing command is `/work`. Treat it as a new named Work Agent, not a command menu.
 
 When the user sends `/work` or asks to switch to work mode, run:
 
@@ -42,21 +48,38 @@ If the CLI asks an onboarding question, treat the user's next plain-English repl
 
 Do not make the user run setup/status/threshold/cron commands. Handle those internally. Once onboarding is complete, `/work` should summarize the company, connected sources, watched signals, permission mode, and work-vault location in plain English.
 
+Use the installed agent profile for behavior and safety rules:
+
+```text
+~/.openclaw/workspace/agents/work-agent.md
+```
+
+If the CLI says onboarding is complete, do not stop there. Use OpenClaw brain/tool access to inspect connected sources when useful: Firebase, Gmail, Drive, Obsidian, website files, GitHub/local repos, Telegram, and any installed MCPs. Build a short live company snapshot before replying.
+
 Default behavior is ask-then-execute. Even in full-access mode, ask before sending emails/messages, deleting data, replacing database subtrees, deploying, creating external resources, or changing payment/ad-spend settings.
+
+### End OpenClaw Work Agent
 EOF
 fi
 
-if [[ -f "$TOOLS_MD" ]] && ! grep -q "### OpenClaw Work Agent" "$TOOLS_MD"; then
+if [[ -f "$TOOLS_MD" ]]; then
+  TMP_TOOLS="$(mktemp)"
+  sed '/### OpenClaw Work Agent/,/### End OpenClaw Work Agent/d' "$TOOLS_MD" > "$TMP_TOOLS"
+  cat "$TMP_TOOLS" > "$TOOLS_MD"
+  rm -f "$TMP_TOOLS"
   cat >> "$TOOLS_MD" <<'EOF'
 
 ### OpenClaw Work Agent
 
 - CLI: `~/.openclaw/tools/openclaw-work-agent`
+- Agent profile: `~/.openclaw/workspace/agents/work-agent.md`
 - Runtime config: `~/.openclaw/work-agent/config.json`
 - Reports: configured company Obsidian folder, or `~/.openclaw/work-agent/reports`
 - User-facing entrypoint: `/work`
 - Internal CLI entrypoint: `openclaw-work-agent`
 - Internal onboarding answer handler: `openclaw-work-agent answer "<plain English answer>"`
+
+### End OpenClaw Work Agent
 EOF
 fi
 
@@ -68,6 +91,9 @@ CLI:
 
 Skill:
   $SKILLS_DIR/work-agent/SKILL.md
+
+Agent profile:
+  $AGENTS_DIR/work-agent.md
 
 Config:
   $STATE_DIR/config.json

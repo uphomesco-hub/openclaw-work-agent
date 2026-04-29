@@ -8,6 +8,28 @@
     "uphomes": {
       "name": "UpHomes",
       "slug": "uphomes",
+      "businessSummary": "UpHomes is a rental marketplace for tenants, property owners, flatmates, and microbrokers.",
+      "customerSegments": [
+        "tenants",
+        "property owners",
+        "flatmates",
+        "microbrokers"
+      ],
+      "productSurfaces": [
+        "mobile app",
+        "website",
+        "Firebase backend",
+        "support inbox",
+        "SEO blog"
+      ],
+      "keyWorkflows": [
+        "tenant signup",
+        "property publishing",
+        "contact or call activity",
+        "lead conversion",
+        "support and feedback",
+        "content publishing"
+      ],
       "goals": [
         "Improve rental lead conversion",
         "Catch app/backend issues quickly",
@@ -34,6 +56,24 @@
         "Cloud Functions errors",
         "support and feedback emails",
         "manual ops tasks that repeat"
+      ],
+      "growthChannels": [
+        "SEO blogs",
+        "rental locality pages",
+        "referrals",
+        "Meta Ads after connector setup"
+      ],
+      "risks": [
+        "wrong production database changes",
+        "bad customer replies",
+        "Cloud Functions failures",
+        "ad spend waste",
+        "payment or subscription issues"
+      ],
+      "decisionRules": [
+        "live app/backend issues are urgent",
+        "support and payment issues should be surfaced quickly",
+        "ask before production writes, deploys, external messages, or spend changes"
       ],
       "connectorsWanted": [
         "firebase",

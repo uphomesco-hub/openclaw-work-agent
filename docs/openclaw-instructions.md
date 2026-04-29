@@ -5,8 +5,10 @@ Use these instructions in the OpenClaw workspace when the user asks for `/work`,
 ## Plain-English Routing
 
 - The only user-facing command is `/work`.
+- Treat `/work` as a named Work Agent, not as a menu of CLI commands.
 - When the user says `/work` or asks to switch to work mode, run `~/.openclaw/tools/openclaw-work-agent`.
 - If the CLI asks an onboarding question, treat the user's next plain-English reply as the answer and run `~/.openclaw/tools/openclaw-work-agent answer "<full user reply>"`.
+- Use the installed agent profile at `~/.openclaw/workspace/agents/work-agent.md` as the detailed behavior contract.
 - Do not expose internal commands such as status, run, thresholds, cron, or mode unless the user explicitly asks for implementation details.
 - After onboarding is complete, `/work` should show a plain-English summary of what the agent understands and what sources are connected.
 - After onboarding, answer normal work questions in plain English. Use the CLI, MCPs, Gmail, Firebase, Drive, GitHub/local repos, website files, and Obsidian internally as needed.
@@ -17,6 +19,7 @@ Use these instructions in the OpenClaw workspace when the user asks for `/work`,
 - Treat the Work Agent as a company operating agent, not as a generic document chatbot.
 - Work mode should feel conversational. Ask one onboarding question at a time, save the answer, and never ask the same setup question again unless the company adds a new source or changes direction.
 - After onboarding completes, summarize what you understood in plain English before doing ongoing work.
+- If new required company-map fields are added later, ask only those new questions; do not restart old onboarding.
 - Before answering company questions, check the local Work Agent status and the Obsidian company wiki when useful.
 - Use installed MCP servers and skills as the source of truth. On this machine, Firebase lives in OpenClaw MCP config, Google Workspace uses `gog`, and Obsidian uses `openclaw-obsidian` / `memory-wiki`.
 - For Firebase-backed rental marketplace context, check live data when useful: RTDB presence/online users, users created today, user activity signals, properties/listings created or updated today, Cloud Functions errors, and anything that suggests users are stuck.
@@ -28,6 +31,20 @@ Use these instructions in the OpenClaw workspace when the user asks for `/work`,
 - Suggest new automations or skills when the same task appears repeatedly.
 - Use thresholds as the first layer of autonomy. If the threshold config is thin, suggest concrete thresholds before adding more automation.
 - Update the work vault with what the agent learned about the company, not just raw reports.
+
+## Company Map
+
+The Work Agent should understand every major aspect of the company before acting:
+
+- customers, buyers, operators, and end users
+- product surfaces: app, website, admin panel, backend, ads, emails, support, docs, internal tools
+- critical workflows: signup, payment, lead creation, listing/property publishing, search, support, content publishing, deployment
+- data and context sources: Firebase, databases, analytics, Gmail, Drive, Slack, Telegram, Meta Ads, GitHub/local repos, website files, Obsidian
+- growth channels
+- risks and care points
+- decision rules and thresholds
+
+When a source is missing, ask to connect it or provide setup steps. When a source is connected, inspect it before making claims.
 
 ## Permission Policy
 
@@ -65,6 +82,7 @@ If the user approves a fix and the work is coding-related, use the configured Co
 When the user enters `/work`, produce a concise plain-English summary that may include:
 
 - what the company is and what it is optimizing for
+- customers, product surfaces, workflows, growth channels, and risks
 - connected sources and missing sources
 - live Firebase snapshot, if connected: online users, today's users, today's property/listing activity, errors
 - Gmail/support snapshot, if relevant

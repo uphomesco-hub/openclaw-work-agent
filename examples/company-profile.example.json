@@ -8,6 +8,26 @@
     "example-startup": {
       "name": "Example Startup",
       "slug": "example-startup",
+      "businessSummary": "Example Startup helps a specific customer segment solve a specific operating problem.",
+      "customerSegments": [
+        "Primary buyer",
+        "Daily operator",
+        "End user"
+      ],
+      "productSurfaces": [
+        "web app",
+        "website",
+        "admin panel",
+        "backend",
+        "support inbox"
+      ],
+      "keyWorkflows": [
+        "signup",
+        "lead creation",
+        "payment",
+        "support",
+        "deployment"
+      ],
       "goals": [
         "Increase qualified signups",
         "Reduce support response time",
@@ -34,6 +54,20 @@
         "database error signals",
         "conversion blockers",
         "repeat customer complaints"
+      ],
+      "growthChannels": [
+        "SEO content",
+        "direct sales",
+        "referrals"
+      ],
+      "risks": [
+        "production data mistakes",
+        "customer-impacting downtime",
+        "bad external replies"
+      ],
+      "decisionRules": [
+        "urgent customer-impacting issues come before growth suggestions",
+        "ask before production writes or external sends"
       ],
       "connectorsWanted": [
         "firebase",

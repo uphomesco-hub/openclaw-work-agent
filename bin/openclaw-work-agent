@@ -25,6 +25,13 @@ const DEFAULT_CONFIG = {
     default: {
       name: "My Startup",
       slug: "my-startup",
+      businessSummary: "",
+      customerSegments: [],
+      productSurfaces: [],
+      keyWorkflows: [],
+      decisionRules: [],
+      growthChannels: [],
+      risks: [],
       goals: [],
       firebaseProject: "",
       gmailAccount: "",
@@ -215,6 +222,18 @@ const ONBOARDING_STEPS = [
     question: "In plain English, what does this company do and who is it for?"
   },
   {
+    id: "customerSegments",
+    question: "Who are the main customers, users, buyers, or operators I should understand?"
+  },
+  {
+    id: "productSurfaces",
+    question: "What product surfaces should I watch? For example app, website, admin panel, backend, emails, ads, support, docs, or internal tools."
+  },
+  {
+    id: "keyWorkflows",
+    question: "What are the most important workflows where problems matter? For example signup, payment, leads, calls, listings, search, support, content publishing, or deployment."
+  },
+  {
     id: "goals",
     question: "What are the main business goals I should optimize for right now?"
   },
@@ -241,6 +260,18 @@ const ONBOARDING_STEPS = [
   {
     id: "importantSignals",
     question: "What kinds of changes should make me pay attention? For example angry customer mail, payment issues, app errors, new high-value leads, low signups, or ad spend changes."
+  },
+  {
+    id: "growthChannels",
+    question: "Where does growth come from today? For example SEO blogs, Meta Ads, referrals, direct sales, app store, partnerships, or marketplaces."
+  },
+  {
+    id: "risks",
+    question: "What business risks should I be extra careful about? For example wrong data changes, bad customer replies, downtime, ad waste, payment issues, or legal/compliance issues."
+  },
+  {
+    id: "decisionRules",
+    question: "How should I decide what is important? Tell me any rules, thresholds, or founder preferences I should follow."
   },
   {
     id: "allowedActions",
@@ -506,6 +537,12 @@ function buildReport(config, discovery, options = {}) {
   const missing = rows.filter(([, ok]) => !ok).map(([name, , via, detail]) => ({ name, via, detail }));
   const goals = company.goals?.length ? company.goals : ["No goals configured yet"];
   const metrics = company.metricsToWatch?.length ? company.metricsToWatch : ["No metrics configured yet"];
+  const customerSegments = company.customerSegments?.length ? company.customerSegments : ["No customer segments configured yet"];
+  const productSurfaces = company.productSurfaces?.length ? company.productSurfaces : ["No product surfaces configured yet"];
+  const keyWorkflows = company.keyWorkflows?.length ? company.keyWorkflows : ["No critical workflows configured yet"];
+  const growthChannels = company.growthChannels?.length ? company.growthChannels : ["No growth channels configured yet"];
+  const risks = company.risks?.length ? company.risks : ["No explicit risks configured yet"];
+  const decisionRules = company.decisionRules?.length ? company.decisionRules : ["No decision rules configured yet"];
   const mode = config.permissionMode === "full" ? "full-access" : "ask-then-execute";
 
   const actionCandidates = [];
@@ -553,9 +590,39 @@ function buildReport(config, discovery, options = {}) {
     "",
     ...goals.map((goal) => `- ${goal}`),
     "",
+    "## Company Operating Map",
+    "",
+    "### Customers",
+    "",
+    ...customerSegments.map((item) => `- ${item}`),
+    "",
+    "### Product Surfaces",
+    "",
+    ...productSurfaces.map((item) => `- ${item}`),
+    "",
+    "### Critical Workflows",
+    "",
+    ...keyWorkflows.map((item) => `- ${item}`),
+    "",
+    "### Growth Channels",
+    "",
+    ...growthChannels.map((item) => `- ${item}`),
+    "",
+    "### Risks And Care Points",
+    "",
+    ...risks.map((item) => `- ${item}`),
+    "",
+    "### Decision Rules",
+    "",
+    ...decisionRules.map((item) => `- ${item}`),
+    "",
     "## Metrics To Watch",
     "",
     ...metrics.map((metric) => `- ${metric}`),
+    "",
+    "## Connection Plan",
+    "",
+    ...formatConnectionPlan(discovery, company),
     "",
     "## Website And Code Context",
     "",
@@ -563,8 +630,10 @@ function buildReport(config, discovery, options = {}) {
     "",
     "## Live Business Snapshot For OpenClaw Brain",
     "",
+    "- Build a live picture across every connected source before answering strategic work questions.",
     "- Use Firebase MCP to check RTDB online users, users created today, user activity signals, properties/listings published or updated today, and Cloud Functions errors.",
     "- Use Gmail to inspect important feedback, lead, complaint, payment, and support candidates before suggesting action.",
+    "- Use Drive/docs and Obsidian to understand operating context, company decisions, specs, and repeated workflows.",
     "- Use repo and website context to suggest product, performance, SEO, blog, and conversion improvements.",
     "- Save important conclusions back into this work vault so the company brain compounds.",
     "",
@@ -645,6 +714,22 @@ function formatSourceContextReport(sourceContext) {
     lines.push(`- Latest reviews: ${sourceContext.content.latestReviews.map((review) => `${review.name || review.id}${review.designation ? ` (${review.designation})` : ""}`).join("; ")}`);
   }
   return lines;
+}
+
+function formatConnectionPlan(discovery, company) {
+  const plan = [];
+  const wanted = new Set(stringArray(company.connectorsWanted).map((item) => item.toLowerCase()));
+  const rows = connectorRows(discovery);
+  for (const [name, ok, via, detail] of rows) {
+    const key = name.toLowerCase().replace(/\s+/g, "-");
+    if (!wanted.size || wanted.has(key) || wanted.has(name.toLowerCase()) || ok) {
+      plan.push(`- ${name}: ${ok ? `connected through ${via}` : `missing - ${detail || via}`}`);
+    }
+  }
+  if (company.websiteUrl) plan.push(`- Website: configured at ${company.websiteUrl}`);
+  if (stringArray(company.localRepos).length) plan.push(`- Local repos: ${stringArray(company.localRepos).length} configured for code/content context`);
+  if (stringArray(company.githubRepos).length) plan.push(`- GitHub repos: ${stringArray(company.githubRepos).join(", ")}`);
+  return plan.length ? plan : ["- No source map configured yet. Continue onboarding and connect at least one data source."];
 }
 
 function formatMailMatches(thresholdResult) {
@@ -763,7 +848,19 @@ function buildTelegramSummary(report, file) {
 
 function getOnboardingState(company) {
   const onboarding = company.onboarding || {};
-  if (onboarding.completed) return { ...onboarding, completed: true };
+  if (onboarding.completed) {
+    const missingStep = firstMissingOnboardingStepId(company);
+    if (missingStep) {
+      return {
+        ...onboarding,
+        completed: false,
+        currentStep: missingStep,
+        answered: onboarding.answered || [],
+        refinement: true
+      };
+    }
+    return { ...onboarding, completed: true };
+  }
   const hasExplicitProgress = Boolean(onboarding.currentStep || (onboarding.answered || []).length);
   if (!hasExplicitProgress && hasEnoughCompanyContext(company)) {
     return {
@@ -782,6 +879,32 @@ function getOnboardingState(company) {
   };
 }
 
+function firstMissingOnboardingStepId(company) {
+  const answered = new Set(company.onboarding?.answered || []);
+  const missing = ONBOARDING_STEPS.find((step) => !answered.has(step.id) && !stepIsSatisfied(company, step.id));
+  return missing?.id || "";
+}
+
+function stepIsSatisfied(company, stepId) {
+  if (stepId === "startupName") return Boolean(company.name && company.name !== "My Startup");
+  if (stepId === "businessSummary") return Boolean(company.businessSummary);
+  if (stepId === "customerSegments") return stringArray(company.customerSegments).length > 0;
+  if (stepId === "productSurfaces") return stringArray(company.productSurfaces).length > 0;
+  if (stepId === "keyWorkflows") return stringArray(company.keyWorkflows).length > 0;
+  if (stepId === "goals") return stringArray(company.goals).length > 0;
+  if (stepId === "connectors") return stringArray(company.connectorsWanted).length > 0;
+  if (stepId === "websiteUrl") return Boolean(company.websiteUrl);
+  if (stepId === "repos") return stringArray(company.localRepos).length > 0 || stringArray(company.githubRepos).length > 0;
+  if (stepId === "firebaseProject") return Boolean(company.firebaseProject);
+  if (stepId === "gmailAccount") return Boolean(company.gmailAccount);
+  if (stepId === "importantSignals") return stringArray(company.metricsToWatch).length > 0;
+  if (stepId === "growthChannels") return stringArray(company.growthChannels).length > 0;
+  if (stepId === "risks") return stringArray(company.risks).length > 0;
+  if (stepId === "decisionRules") return stringArray(company.decisionRules).length > 0;
+  if (stepId === "allowedActions") return Boolean(company.allowedActions);
+  return false;
+}
+
 function hasEnoughCompanyContext(company) {
   return Boolean(
     company.name
@@ -796,9 +919,11 @@ function currentOnboardingStep(onboarding) {
   return ONBOARDING_STEPS.find((step) => step.id === onboarding.currentStep) || ONBOARDING_STEPS[0];
 }
 
-function nextOnboardingStepId(currentStepId) {
+function nextOnboardingStepId(company, currentStepId) {
   const index = ONBOARDING_STEPS.findIndex((step) => step.id === currentStepId);
-  const next = ONBOARDING_STEPS[index + 1];
+  const answered = new Set([...(company.onboarding?.answered || []), currentStepId]);
+  const remaining = ONBOARDING_STEPS.slice(index + 1);
+  const next = remaining.find((step) => !answered.has(step.id) && !stepIsSatisfied(company, step.id));
   return next?.id || "";
 }
 
@@ -808,7 +933,9 @@ function formatWorkHome(config, discovery) {
   if (!onboarding.completed) {
     const step = currentOnboardingStep(onboarding);
     return [
-      "Work mode is starting. I need to understand this company once, then I will not ask the same setup questions again.",
+      onboarding.refinement
+        ? "Work mode is improving its company map. I found one new setup detail I still need, and I will not ask it again after you answer."
+        : "Work mode is starting. I need to understand this company once, then I will not ask the same setup questions again.",
       "",
       `Question ${ONBOARDING_STEPS.findIndex((item) => item.id === step.id) + 1} of ${ONBOARDING_STEPS.length}:`,
       step.question
@@ -826,7 +953,12 @@ function formatWorkHome(config, discovery) {
     "What I understand:",
     `- Company: ${company.name}`,
     ...(company.businessSummary ? [`- Business: ${company.businessSummary}`] : []),
+    `- Customers/users: ${(company.customerSegments || []).join("; ") || "not set"}`,
+    `- Product surfaces: ${(company.productSurfaces || []).join("; ") || "not set"}`,
+    `- Critical workflows: ${(company.keyWorkflows || []).join("; ") || "not set"}`,
     `- Goals: ${(company.goals || []).join("; ") || "not set"}`,
+    `- Growth channels: ${(company.growthChannels || []).join("; ") || "not set"}`,
+    `- Risks to watch: ${(company.risks || []).join("; ") || "not set"}`,
     `- I should watch: ${(company.metricsToWatch || []).join("; ") || "not set"}`,
     `- Connected sources: ${connected.join(", ") || "none yet"}`,
     `- Missing or optional sources: ${missing.join(", ") || "none"}`,
@@ -838,6 +970,7 @@ function formatWorkHome(config, discovery) {
     lastReport ? `- Latest report: ${lastReport}` : "- Latest report: not created yet",
     "",
     "Live checks I should run through OpenClaw brain now:",
+    "- First build the company picture from connected sources, then answer. Do not guess when a tool can verify it.",
     "- Firebase: online users from RTDB presence, users today, property/listing activity today, function errors, and product behavior signals.",
     "- Gmail: important feedback, leads, complaints, payment issues, and support messages.",
     "- Website/content: latest blogs/reviews, last push, SEO/content opportunities, and performance improvement ideas.",
@@ -971,7 +1104,7 @@ function answerCommand(args) {
   const updated = applyOnboardingAnswer(config, key, company, step.id, answer);
   const updatedKey = updated.activeCompany || key;
   const updatedCompany = updated.companies[updatedKey];
-  const nextStepId = nextOnboardingStepId(step.id);
+  const nextStepId = nextOnboardingStepId(updatedCompany, step.id);
   updated.companies[updatedKey].onboarding = {
     completed: !nextStepId,
     currentStep: nextStepId,
@@ -1021,6 +1154,9 @@ function applyOnboardingAnswer(config, key, company, stepId, answer) {
     }
   }
   if (stepId === "businessSummary") target.businessSummary = answer;
+  if (stepId === "customerSegments") target.customerSegments = splitPlainList(answer);
+  if (stepId === "productSurfaces") target.productSurfaces = splitPlainList(answer);
+  if (stepId === "keyWorkflows") target.keyWorkflows = splitPlainList(answer);
   if (stepId === "goals") target.goals = splitPlainList(answer);
   if (stepId === "connectors") target.connectorsWanted = splitPlainList(answer);
   if (stepId === "websiteUrl") target.websiteUrl = noneToEmpty(answer);
@@ -1040,6 +1176,9 @@ function applyOnboardingAnswer(config, key, company, stepId, answer) {
       queryTerms: splitPlainList(answer).slice(0, 20)
     };
   }
+  if (stepId === "growthChannels") target.growthChannels = splitPlainList(answer);
+  if (stepId === "risks") target.risks = splitPlainList(answer);
+  if (stepId === "decisionRules") target.decisionRules = splitPlainList(answer);
   if (stepId === "allowedActions") target.allowedActions = answer;
   if (!target.obsidianCompanyDir) target.obsidianCompanyDir = defaultObsidianCompanyDir(target.slug || key);
   updated.companies[updated.activeCompany || key] = target;
@@ -1075,14 +1214,24 @@ async function initCommand(args) {
     const current = activeCompany(config).company;
     const startupName = await ask(rl, "Startup/company name", current.name);
     const slug = slugify(startupName);
+    const businessSummary = await ask(rl, "What does this company do and who is it for?", current.businessSummary || "");
+    const customerSegments = await ask(rl, "Customers/users/buyers/operators, comma-separated", (current.customerSegments || []).join(", "));
+    const productSurfaces = await ask(rl, "Product surfaces to watch, comma-separated", (current.productSurfaces || []).join(", "));
+    const keyWorkflows = await ask(rl, "Critical workflows, comma-separated", (current.keyWorkflows || []).join(", "));
     const notifyTarget = await ask(rl, "Notification target, for example telegram:123456789", config.notifyTarget || process.env.WORK_AGENT_NOTIFY_TARGET || "");
     const permissionMode = await ask(rl, "Permission mode: ask or full", config.permissionMode || "ask");
+    const websiteUrl = await ask(rl, "Website or product URL", current.websiteUrl || "");
+    const localRepos = await ask(rl, "Local repo paths, comma-separated", (current.localRepos || []).join(", "));
+    const githubRepos = await ask(rl, "GitHub repos, comma-separated", (current.githubRepos || []).join(", "));
     const firebaseProject = await ask(rl, "Firebase project ID", current.firebaseProject || "");
     const gmailAccount = await ask(rl, "Gmail account", current.gmailAccount || "");
     const driveFolders = await ask(rl, "Drive folder IDs or URLs, comma-separated", (current.driveFolders || []).join(", "));
     const obsidianCompanyDir = await ask(rl, "Obsidian company folder path", current.obsidianCompanyDir || defaultObsidianCompanyDir(slug));
     const metricsToWatch = await ask(rl, "Metrics to watch, comma-separated", (current.metricsToWatch || []).join(", "));
     const goals = await ask(rl, "Business goals, comma-separated", (current.goals || []).join(", "));
+    const growthChannels = await ask(rl, "Growth channels, comma-separated", (current.growthChannels || []).join(", "));
+    const risks = await ask(rl, "Risks and care points, comma-separated", (current.risks || []).join(", "));
+    const decisionRules = await ask(rl, "Decision rules or founder preferences, comma-separated", (current.decisionRules || []).join(", "));
     const importantTerms = await ask(rl, "Important Gmail terms, comma-separated", (current.thresholds?.gmailImportant?.queryTerms || DEFAULT_CONFIG.companies.default.thresholds.gmailImportant.queryTerms).join(", "));
     const gmailLookback = await ask(rl, "Important Gmail lookback, for example 1d or 7d", current.thresholds?.gmailImportant?.lookback || "1d");
     const gmailNotifyOnCount = await ask(rl, "Notify/action threshold for important Gmail count", String(current.thresholds?.gmailImportant?.notifyOnCount ?? 1));
@@ -1096,12 +1245,22 @@ async function initCommand(args) {
         ...current,
         name: startupName,
         slug,
+        businessSummary: businessSummary.trim(),
+        customerSegments: splitList(customerSegments),
+        productSurfaces: splitList(productSurfaces),
+        keyWorkflows: splitList(keyWorkflows),
+        websiteUrl: websiteUrl.trim(),
+        localRepos: splitList(localRepos),
+        githubRepos: splitList(githubRepos),
         firebaseProject: firebaseProject.trim(),
         gmailAccount: gmailAccount.trim(),
         driveFolders: splitList(driveFolders),
         obsidianCompanyDir: obsidianCompanyDir.trim(),
         metricsToWatch: splitList(metricsToWatch),
         goals: splitList(goals),
+        growthChannels: splitList(growthChannels),
+        risks: splitList(risks),
+        decisionRules: splitList(decisionRules),
         thresholds: {
           ...(current.thresholds || DEFAULT_CONFIG.companies.default.thresholds),
           gmailImportant: {
@@ -1307,9 +1466,10 @@ function buildBrainLoopMessage(kind) {
   if (kind === "light") {
     return [
       "Run the OpenClaw Work Agent light monitor.",
-      "Use the work-agent skill and your own reasoning, not only deterministic keyword matching.",
+      "Use the work-agent skill, the agent profile at `~/.openclaw/workspace/agents/work-agent.md`, and your own reasoning, not only deterministic keyword matching.",
       "First run `~/.openclaw/tools/openclaw-work-agent run --scheduled light` to collect connector status, threshold candidates, and write the work-vault report.",
       "Then inspect the report and, if useful, use connected tools such as Gmail via gog, Firebase MCP, and the work Obsidian vault to decide whether anything is genuinely important.",
+      "Think through the full company map: customers, product surfaces, workflows, growth channels, risks, and decision rules.",
       "For Firebase rental-marketplace context, check online users, users today, properties/listings updated today, and function/backend errors when tools are available.",
       "For website context, consider latest blog/review content, latest repo push, conversion opportunities, performance improvements, and SEO suggestions.",
       "Update the work vault with any meaningful finding.",
@@ -1318,10 +1478,10 @@ function buildBrainLoopMessage(kind) {
   }
   return [
     "Run the OpenClaw Work Agent daily deep report.",
-    "Use the work-agent skill and your own reasoning to synthesize the company's current operating context.",
+    "Use the work-agent skill, the agent profile at `~/.openclaw/workspace/agents/work-agent.md`, and your own reasoning to synthesize the company's current operating context.",
     "First run `~/.openclaw/tools/openclaw-work-agent run --scheduled deep` to collect connector status, threshold candidates, and write the work-vault report.",
     "Then read the latest work-vault report and relevant work memory, inspect connected sources if needed, and update the work brain with decisions, repeated issues, suggested thresholds, and automation candidates.",
-    "Include live business snapshot, repo/content context, product improvement ideas, SEO/content suggestions, and backend/Firebase issues that should be fixed or assigned.",
+    "Include full company-map gaps, live business snapshot, repo/content context, product improvement ideas, SEO/content suggestions, and backend/Firebase issues that should be fixed or assigned.",
     "Only notify the user if there is a decision or action worth taking. Do not send external replies or mutate production systems without explicit confirmation."
   ].join(" ");
 }

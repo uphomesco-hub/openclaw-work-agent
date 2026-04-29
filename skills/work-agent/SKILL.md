@@ -11,11 +11,12 @@ This skill turns OpenClaw into a company operating agent. It uses installed MCPs
 
 1. Internally inspect connector status with the Work Agent CLI when needed.
 2. Use the company profile in `~/.openclaw/work-agent/config.json` as the operating context.
-3. Use the dedicated work-only Obsidian vault reports and wiki pages as durable memory before answering strategic or historical questions.
-4. Use MCPs, Gmail, GitHub/local repos, website files, and local skills for live data only when they are actually connected.
-5. If a connector is missing, give setup steps instead of inventing data.
-6. Save durable findings and recurring workflows into Obsidian.
-7. Suggest a new skill when a task repeats.
+3. Use the agent profile in `~/.openclaw/workspace/agents/work-agent.md` as the full behavior contract.
+4. Use the dedicated work-only Obsidian vault reports and wiki pages as durable memory before answering strategic or historical questions.
+5. Use MCPs, Gmail, GitHub/local repos, website files, and local skills for live data only when they are actually connected.
+6. If a connector is missing, give setup steps instead of inventing data.
+7. Save durable findings and recurring workflows into Obsidian.
+8. Suggest a new skill when a task repeats.
 
 ## User Experience
 
@@ -25,11 +26,27 @@ The user should only need `/work`.
 - If onboarding is incomplete, ask one plain-English question.
 - Save each plain-English answer with the internal `answer` command.
 - Do not ask completed onboarding questions again.
-- Once onboarding is complete, summarize what the agent understands: company, goals, sources, watched signals, permission mode, and missing connectors.
+- If new company-map fields are added later, ask only those new questions.
+- Once onboarding is complete, summarize what the agent understands: company, customers, product surfaces, workflows, goals, sources, watched signals, permission mode, and missing connectors.
 - Include website URL, latest repo commits/push context, latest blogs/reviews, and product/content opportunities when configured.
 - After that, all work-mode interaction should be normal plain English.
 
 Internal commands exist for OpenClaw and setup scripts, but do not present them as the workflow unless the user asks for technical details.
+
+## Company Understanding
+
+The agent should build and maintain an operating map:
+
+- customers, buyers, operators, and end users
+- product surfaces
+- core workflows
+- data and tool sources
+- growth channels
+- current goals
+- risks and care points
+- decision rules
+
+The point is not just to connect tools. The point is to know what each tool means for the business.
 
 ## Permission Boundary
 
