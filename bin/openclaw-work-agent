@@ -41,7 +41,7 @@ const DEFAULT_CONFIG = {
       githubRepos: [],
       obsidianCompanyDir: "",
       metricsToWatch: [],
-      connectorsWanted: ["firebase", "gmail", "drive", "obsidian", "telegram", "meta-ads"],
+      connectorsWanted: ["database", "backend", "mail", "github", "slack", "analytics", "payments", "ads", "docs", "support", "mcp"],
       thresholds: {
         gmailImportant: {
           enabled: true,
@@ -239,7 +239,7 @@ const ONBOARDING_STEPS = [
   },
   {
     id: "connectors",
-    question: "Which sources should I understand for this company? You can say things like Firebase, Gmail, Drive, Meta Ads, Slack, or Obsidian."
+    question: "What else should I connect to understand the company? You can name anything: your database, backend logs, mail, Slack, GitHub, analytics, payments, ads, docs, support tools, internal APIs, or any MCP."
   },
   {
     id: "websiteUrl",
@@ -720,16 +720,58 @@ function formatConnectionPlan(discovery, company) {
   const plan = [];
   const wanted = new Set(stringArray(company.connectorsWanted).map((item) => item.toLowerCase()));
   const rows = connectorRows(discovery);
+  const covered = new Set();
   for (const [name, ok, via, detail] of rows) {
     const key = name.toLowerCase().replace(/\s+/g, "-");
+    covered.add(key);
+    covered.add(name.toLowerCase());
     if (!wanted.size || wanted.has(key) || wanted.has(name.toLowerCase()) || ok) {
       plan.push(`- ${name}: ${ok ? `connected through ${via}` : `missing - ${detail || via}`}`);
     }
+  }
+  for (const requested of wanted) {
+    if (covered.has(requested)) continue;
+    plan.push(`- ${requested}: not connected yet - ${connectorSetupSteps(requested)}`);
   }
   if (company.websiteUrl) plan.push(`- Website: configured at ${company.websiteUrl}`);
   if (stringArray(company.localRepos).length) plan.push(`- Local repos: ${stringArray(company.localRepos).length} configured for code/content context`);
   if (stringArray(company.githubRepos).length) plan.push(`- GitHub repos: ${stringArray(company.githubRepos).join(", ")}`);
   return plan.length ? plan : ["- No source map configured yet. Continue onboarding and connect at least one data source."];
+}
+
+function connectorSetupSteps(name) {
+  const value = String(name || "").toLowerCase();
+  if (/postgres|mysql|mongo|supabase|database|db|sql|redis/.test(value)) {
+    return "add an MCP/API connector with read-only credentials first, document tables/collections to inspect, then allow writes only after explicit confirmation";
+  }
+  if (/backend|logs|server|api|cloud|function|sentry|datadog|logtail|railway|render|vercel|netlify|aws|gcp/.test(value)) {
+    return "connect logs/deploy provider through an MCP, CLI, or API token, then define which services, error levels, and deploy events matter";
+  }
+  if (/mail|email|gmail|outlook|support|zendesk|intercom|freshdesk|helpscout/.test(value)) {
+    return "connect the inbox/support tool through OAuth or MCP, pick the account/queue, and define reply/urgent rules";
+  }
+  if (/slack|discord|teams/.test(value)) {
+    return "connect the chat workspace, select channels to watch, and define which alerts or tasks deserve escalation";
+  }
+  if (/github|gitlab|repo|code/.test(value)) {
+    return "connect GitHub/GitLab or add local repo paths, then define branches, deployment repos, and review/CI signals to watch";
+  }
+  if (/analytics|mixpanel|posthog|ga4|google analytics|amplitude|events/.test(value)) {
+    return "connect analytics through API/MCP, choose key events and funnels, then define alert thresholds";
+  }
+  if (/stripe|razorpay|payment|billing|subscription/.test(value)) {
+    return "connect payment provider API/MCP in read-only mode first, define payment/refund/subscription signals, and require confirmation for money changes";
+  }
+  if (/ads|meta|facebook|google ads|adwords|marketing/.test(value)) {
+    return "connect ads API/MCP, choose ad accounts/campaigns, and require confirmation before spend, budget, or targeting changes";
+  }
+  if (/drive|docs|notion|confluence|wiki|obsidian|knowledge/.test(value)) {
+    return "connect the docs/wiki source, select folders or spaces, and define which documents are operating memory";
+  }
+  if (/mcp|tool|api|internal/.test(value)) {
+    return "install or register the MCP/API connector in OpenClaw, expose read tools first, then document any write tools that need approval";
+  }
+  return "add it as an OpenClaw MCP, API connector, CLI, or OAuth integration, then tell Ops Brain what to read, what to ignore, and what actions require approval";
 }
 
 function formatMailMatches(thresholdResult) {
@@ -1453,7 +1495,7 @@ function cronCommand(args) {
       "--to", target.target,
       "--no-deliver",
       "--best-effort-deliver",
-      "--timeout-seconds", "300"
+      "--timeout-seconds", "600"
     ];
     if (job.every) addArgs.push("--every", job.every);
     if (job.cron) addArgs.push("--cron", job.cron, "--tz", "Asia/Kolkata");
@@ -1468,7 +1510,8 @@ function buildBrainLoopMessage(kind) {
       "Run the OpenClaw Ops Brain light monitor.",
       "Use the work-agent skill, the agent profile at `~/.openclaw/workspace/agents/work-agent.md`, and your own reasoning, not only deterministic keyword matching.",
       "First run `~/.openclaw/tools/openclaw-work-agent run --scheduled light` to collect connector status, threshold candidates, and write the work-vault report.",
-      "Then inspect the report and, if useful, use connected tools such as Gmail via gog, Firebase MCP, and the work Obsidian vault to decide whether anything is genuinely important.",
+      "Then inspect the report and, if useful, use any connected tool or MCP to decide whether anything is genuinely important.",
+      "If the company needs another system connected, write the shortest setup steps for that database, backend, mail, chat, repo, analytics, payment, ads, docs, support, API, or MCP source.",
       "Think through the full company map: customers, product surfaces, workflows, growth channels, risks, and decision rules.",
       "For Firebase rental-marketplace context, check online users, users today, properties/listings updated today, and function/backend errors when tools are available.",
       "For website context, consider latest blog/review content, latest repo push, conversion opportunities, performance improvements, and SEO suggestions.",
@@ -1480,7 +1523,7 @@ function buildBrainLoopMessage(kind) {
     "Run the OpenClaw Ops Brain daily deep report.",
     "Use the work-agent skill, the agent profile at `~/.openclaw/workspace/agents/work-agent.md`, and your own reasoning to synthesize the company's current operating context.",
     "First run `~/.openclaw/tools/openclaw-work-agent run --scheduled deep` to collect connector status, threshold candidates, and write the work-vault report.",
-    "Then read the latest work-vault report and relevant work memory, inspect connected sources if needed, and update the work brain with decisions, repeated issues, suggested thresholds, and automation candidates.",
+    "Then read the latest work-vault report and relevant work memory, inspect connected sources if needed, and update the work brain with decisions, repeated issues, suggested thresholds, connector setup steps, and automation candidates.",
     "Include full company-map gaps, live business snapshot, repo/content context, product improvement ideas, SEO/content suggestions, and backend/Firebase issues that should be fixed or assigned.",
     "Only notify the user if there is a decision or action worth taking. Do not send external replies or mutate production systems without explicit confirmation."
   ].join(" ");

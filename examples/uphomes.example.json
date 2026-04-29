@@ -77,8 +77,14 @@
       ],
       "connectorsWanted": [
         "firebase",
-        "gmail",
-        "drive",
+        "mail",
+        "backend logs",
+        "github",
+        "website repo",
+        "analytics",
+        "payments",
+        "support inbox",
+        "drive/docs",
         "obsidian",
         "telegram",
         "meta-ads"

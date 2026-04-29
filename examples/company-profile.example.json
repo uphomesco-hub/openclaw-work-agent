@@ -70,12 +70,17 @@
         "ask before production writes or external sends"
       ],
       "connectorsWanted": [
-        "firebase",
-        "gmail",
-        "drive",
-        "obsidian",
-        "telegram",
-        "meta-ads"
+        "database",
+        "backend logs",
+        "mail",
+        "slack",
+        "github",
+        "analytics",
+        "payments",
+        "ads",
+        "docs",
+        "support tool",
+        "internal APIs"
       ],
       "thresholds": {
         "gmailImportant": {

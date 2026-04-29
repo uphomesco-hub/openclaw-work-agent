@@ -18,15 +18,18 @@ This repo is safe to publish. It contains only sample config and setup docs. Liv
 
 ## What It Connects To
 
-V1 supports these connector surfaces:
+Ops Brain is connector-agnostic. It can work with anything OpenClaw can reach through an MCP, OAuth connector, CLI, local repo, API token, or a short setup plan.
 
-- OpenClaw MCP config, especially Firebase
-- Google Workspace through `gog`
-- Obsidian through `openclaw-obsidian` and `memory-wiki`
-- Telegram through OpenClaw message delivery
-- Meta Ads as a missing connector until an MCP/API integration is installed
+Typical sources include:
 
-The agent reports missing connectors honestly. It does not pretend to have data it cannot access.
+- databases: Firebase, Postgres, MySQL, MongoDB, Supabase, Redis, internal APIs
+- backend and infra: Cloud Functions, server logs, deploy providers, Sentry, Datadog, AWS/GCP/Render/Railway/Vercel/Netlify
+- communication: Gmail, Outlook, Slack, Discord, Teams, Telegram, support desks
+- product and growth: analytics, PostHog, Mixpanel, GA4, Meta Ads, Google Ads, app stores
+- business systems: Stripe, Razorpay, billing, CRM, spreadsheets, docs, Drive, Notion, Confluence, Obsidian
+- code and shipping: GitHub, GitLab, local repos, CI, release logs
+
+During onboarding it asks what else you want connected. If a source is not connected yet, it reports that honestly and gives the shortest setup path: what connector/API/MCP to add, what credentials or auth are needed, what data to read, and which write actions must require approval.
 
 ## Install
 
@@ -110,11 +113,11 @@ After onboarding, `/work` should combine:
 
 - company profile and goals
 - customers, product surfaces, critical workflows, growth channels, risks, and decision rules
-- connected Firebase/Gmail/Drive/Obsidian/Telegram sources
+- connected company sources across database, backend, mail, docs, chat, repos, analytics, payments, ads, and MCPs
 - website URL and local/GitHub repo context
 - latest commit/push and local change state
 - latest blog/review content from the website repo when configured
-- OpenClaw brain checks for online users, today's users, today's property/listing activity, feedback, errors, and improvement ideas
+- OpenClaw brain checks for live users, product activity, support/feedback, backend errors, content/repo changes, growth signals, and improvement ideas
 
 The CLI is only the local memory and signal collector. OpenClaw is the brain. Once the setup questions are answered, OpenClaw should use the installed agent profile at `~/.openclaw/workspace/agents/work-agent.md` and inspect connected tools before forming the live company snapshot.
 

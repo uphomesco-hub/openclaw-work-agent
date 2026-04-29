@@ -1,6 +1,6 @@
 ---
 name: work-agent
-description: Use when the user asks for /work, a company brain, startup operating agent, always-on business monitoring, connector setup for Firebase/Gmail/Drive/Obsidian/Meta Ads, or OpenClaw skills that understand and operate a company.
+description: Use when the user asks for /work, ops brain, a company brain, startup operating agent, always-on business monitoring, connector setup for any company system, or OpenClaw skills that understand and operate a company.
 ---
 
 # OpenClaw Ops Brain
@@ -13,7 +13,7 @@ This skill turns OpenClaw into Ops Brain, a company operating agent. It uses ins
 2. Use the company profile in `~/.openclaw/work-agent/config.json` as the operating context.
 3. Use the agent profile in `~/.openclaw/workspace/agents/work-agent.md` as the full behavior contract.
 4. Use the dedicated work-only Obsidian vault reports and wiki pages as durable memory before answering strategic or historical questions.
-5. Use MCPs, Gmail, GitHub/local repos, website files, and local skills for live data only when they are actually connected.
+5. Use any connected MCP, OAuth connector, API, CLI, local repo, website file, or local skill for live data only when it is actually connected.
 6. If a connector is missing, give setup steps instead of inventing data.
 7. Save durable findings and recurring workflows into Obsidian.
 8. Suggest a new skill when a task repeats.
@@ -40,7 +40,7 @@ The agent should build and maintain an operating map:
 - customers, buyers, operators, and end users
 - product surfaces
 - core workflows
-- data and tool sources
+- data and tool sources: database, backend, logs, mail, docs, chat, support, analytics, payments, ads, CRM, repos, internal APIs, and MCPs
 - growth channels
 - current goals
 - risks and care points
@@ -65,11 +65,12 @@ Confirmation must include the exact target, intended change, and likely impact.
 
 ## Connector Notes
 
-- Firebase: prefer OpenClaw MCP config; query live data through available Firebase MCP tools.
-- Google Workspace: use `gog` for Gmail, Drive, Docs, Sheets, and Calendar.
-- Obsidian: use `openclaw-obsidian` with the configured work vault path, defaulting to `~/Documents/Obsidian-Work-Brain`.
-- Telegram: use OpenClaw message delivery for concise alerts.
-- Meta Ads: treat as missing until an MCP/API connector is present.
+- Any source: prefer an OpenClaw MCP or approved connector. If unavailable, suggest OAuth, API token, CLI, local repo path, or manual export setup steps.
+- Databases/backends: connect read-only first, define tables/collections/log streams, and require confirmation for writes/deploys.
+- Mail/chat/support: connect the account or workspace, select inboxes/channels/queues, and require confirmation before external replies.
+- Repos/GitHub/GitLab: connect the repo or local path, inspect branch/commit/CI/deploy context, and ask before code changes unless explicitly approved.
+- Payments/ads: connect read-only first and require confirmation before money, spend, pricing, subscription, targeting, or budget changes.
+- Obsidian/docs/wiki: use the configured work vault and selected folders as durable operating memory.
 
 ## Report Style
 
