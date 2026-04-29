@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "activeCompany": "example-startup",
+  "permissionMode": "ask",
+  "notifyTarget": "telegram:123456789",
+  "quietScheduledRuns": true,
+  "companies": {
+    "example-startup": {
+      "name": "Example Startup",
+      "slug": "example-startup",
+      "goals": [
+        "Increase qualified signups",
+        "Reduce support response time",
+        "Find product bugs before users churn"
+      ],
+      "firebaseProject": "example-project-id",
+      "gmailAccount": "founder@example.com",
+      "driveFolders": [
+        "https://drive.google.com/drive/folders/example-folder-id"
+      ],
+      "obsidianCompanyDir": "$HOME/Documents/Obsidian-AI-Memory/wiki/projects/example-startup-work-agent",
+      "metricsToWatch": [
+        "new users per day",
+        "support emails from last 24h",
+        "database error signals",
+        "conversion blockers",
+        "repeat customer complaints"
+      ],
+      "connectorsWanted": [
+        "firebase",
+        "gmail",
+        "drive",
+        "obsidian",
+        "telegram",
+        "meta-ads"
+      ],
+      "approvalPolicy": {
+        "defaultMode": "ask",
+        "alwaysConfirm": [
+          "email_send",
+          "external_message_send",
+          "database_delete",
+          "database_replace_subtree",
+          "deploy",
+          "project_or_app_create",
+          "payment_change",
+          "ad_spend_change"
+        ]
+      }
+    }
+  }
+}

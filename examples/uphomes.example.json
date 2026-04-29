@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "activeCompany": "uphomes",
+  "permissionMode": "ask",
+  "notifyTarget": "telegram:YOUR_TELEGRAM_CHAT_ID",
+  "quietScheduledRuns": true,
+  "companies": {
+    "uphomes": {
+      "name": "UpHomes",
+      "slug": "uphomes",
+      "goals": [
+        "Improve rental lead conversion",
+        "Catch app/backend issues quickly",
+        "Understand user and property activity from Firebase",
+        "Turn repeated support and ops work into OpenClaw skills"
+      ],
+      "firebaseProject": "your-firebase-project-id",
+      "gmailAccount": "founder@example.com",
+      "driveFolders": [],
+      "obsidianCompanyDir": "$HOME/Documents/Obsidian-AI-Memory/wiki/projects/uphomes-work-agent",
+      "metricsToWatch": [
+        "new users",
+        "new or updated properties",
+        "online users from RTDB presence",
+        "Cloud Functions errors",
+        "support and feedback emails",
+        "manual ops tasks that repeat"
+      ],
+      "connectorsWanted": [
+        "firebase",
+        "gmail",
+        "drive",
+        "obsidian",
+        "telegram",
+        "meta-ads"
+      ],
+      "approvalPolicy": {
+        "defaultMode": "ask",
+        "alwaysConfirm": [
+          "email_send",
+          "external_message_send",
+          "database_delete",
+          "database_replace_subtree",
+          "deploy",
+          "project_or_app_create",
+          "payment_change",
+          "ad_spend_change"
+        ]
+      }
+    }
+  }
+}

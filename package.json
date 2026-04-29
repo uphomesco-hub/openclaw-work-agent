@@ -1,0 +1,26 @@
+{
+  "name": "openclaw-work-agent",
+  "version": "0.1.0",
+  "description": "OpenClaw work agent skill and local CLI for company operations monitoring.",
+  "type": "module",
+  "bin": {
+    "openclaw-work-agent": "bin/openclaw-work-agent"
+  },
+  "scripts": {
+    "check": "node --check bin/openclaw-work-agent",
+    "status": "node bin/openclaw-work-agent status",
+    "dry-run": "node bin/openclaw-work-agent run --dry-run"
+  },
+  "keywords": [
+    "openclaw",
+    "mcp",
+    "agents",
+    "operations",
+    "obsidian",
+    "firebase"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  }
+}

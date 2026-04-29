@@ -1,0 +1,27 @@
+.DS_Store
+node_modules/
+.env
+.env.*
+!.env.example
+
+# Local runtime state. Never commit live company config, reports, or logs.
+state/
+logs/
+reports/
+config.json
+*.local.json
+
+# OpenClaw local installs and generated data.
+.openclaw-work-agent/
+work-agent-state/
+
+# Secrets and exports.
+credentials/
+secrets/
+service-account*.json
+firebase-admin*.json
+google-client-secret*.json
+gmail-export*
+drive-export*
+firestore-export*
+meta-ads-export*

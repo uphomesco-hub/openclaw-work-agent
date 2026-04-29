@@ -1,0 +1,684 @@
+#!/usr/bin/env node
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import readline from "node:readline/promises";
+import { stdin as input, stdout as output } from "node:process";
+import { execFileSync, spawnSync } from "node:child_process";
+
+const HOME = os.homedir();
+const DEFAULT_STATE_DIR = expand(process.env.OPENCLAW_WORK_AGENT_DIR || "~/.openclaw/work-agent");
+const DEFAULT_TOOLS_DIR = expand(process.env.OPENCLAW_TOOLS_DIR || "~/.openclaw/tools");
+const DEFAULT_WORKSPACE_DIR = expand(process.env.OPENCLAW_WORKSPACE_DIR || "~/.openclaw/workspace");
+const DEFAULT_CONFIG_PATH = path.join(DEFAULT_STATE_DIR, "config.json");
+const DEFAULT_REPORTS_DIR = path.join(DEFAULT_STATE_DIR, "reports");
+const DEFAULT_LOG_PATH = path.join(DEFAULT_STATE_DIR, "events.jsonl");
+
+const DEFAULT_CONFIG = {
+  version: 1,
+  activeCompany: "default",
+  permissionMode: "ask",
+  notifyTarget: "",
+  quietScheduledRuns: true,
+  companies: {
+    default: {
+      name: "My Startup",
+      slug: "my-startup",
+      goals: [],
+      firebaseProject: "",
+      gmailAccount: "",
+      driveFolders: [],
+      obsidianCompanyDir: "",
+      metricsToWatch: [],
+      connectorsWanted: ["firebase", "gmail", "drive", "obsidian", "telegram", "meta-ads"],
+      approvalPolicy: {
+        defaultMode: "ask",
+        alwaysConfirm: [
+          "email_send",
+          "external_message_send",
+          "database_delete",
+          "database_replace_subtree",
+          "deploy",
+          "project_or_app_create",
+          "payment_change",
+          "ad_spend_change"
+        ]
+      }
+    }
+  }
+};
+
+function expand(value) {
+  if (!value) return value;
+  if (value === "~") return HOME;
+  if (value.startsWith("~/")) return path.join(HOME, value.slice(2));
+  return value.replace(/\$HOME/g, HOME);
+}
+
+function nowIso() {
+  return new Date().toISOString();
+}
+
+function ensureDir(dir) {
+  fs.mkdirSync(dir, { recursive: true });
+}
+
+function readJson(file, fallback = null) {
+  try {
+    return JSON.parse(fs.readFileSync(file, "utf8"));
+  } catch {
+    return fallback;
+  }
+}
+
+function writeJson(file, value) {
+  ensureDir(path.dirname(file));
+  fs.writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
+}
+
+function appendJsonl(file, value) {
+  ensureDir(path.dirname(file));
+  fs.appendFileSync(file, `${JSON.stringify({ ts: nowIso(), ...value })}\n`);
+}
+
+function parseArgs(argv) {
+  const args = { _: [] };
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    if (!arg.startsWith("--")) {
+      args._.push(arg);
+      continue;
+    }
+    const key = arg.slice(2);
+    const next = argv[i + 1];
+    if (next && !next.startsWith("--")) {
+      args[key] = next;
+      i += 1;
+    } else {
+      args[key] = true;
+    }
+  }
+  return args;
+}
+
+function run(command, args = [], options = {}) {
+  try {
+    const out = execFileSync(command, args, {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+      timeout: options.timeout || 30000,
+      env: { ...process.env, ...options.env }
+    });
+    return { ok: true, stdout: out.trim(), stderr: "" };
+  } catch (error) {
+    return {
+      ok: false,
+      stdout: String(error.stdout || "").trim(),
+      stderr: String(error.stderr || error.message || "").trim(),
+      code: error.status ?? 1
+    };
+  }
+}
+
+function commandExists(command) {
+  const result = spawnSync("zsh", ["-lc", `command -v ${shellQuote(command)}`], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"]
+  });
+  return result.status === 0 && result.stdout.trim().length > 0;
+}
+
+function shellQuote(value) {
+  return `'${String(value).replace(/'/g, "'\\''")}'`;
+}
+
+function loadConfig(args = {}) {
+  const configPath = expand(args.config || DEFAULT_CONFIG_PATH);
+  const loaded = readJson(configPath, null);
+  const config = loaded ? mergeConfig(DEFAULT_CONFIG, loaded) : structuredClone(DEFAULT_CONFIG);
+  return { config, configPath };
+}
+
+function mergeConfig(base, override) {
+  if (Array.isArray(base) || Array.isArray(override)) return override ?? base;
+  if (!base || typeof base !== "object") return override ?? base;
+  const next = { ...base };
+  for (const [key, value] of Object.entries(override || {})) {
+    next[key] = value && typeof value === "object" && !Array.isArray(value)
+      ? mergeConfig(base[key] || {}, value)
+      : value;
+  }
+  return next;
+}
+
+function activeCompany(config) {
+  const key = config.activeCompany || "default";
+  return { key, company: config.companies?.[key] || config.companies?.default || DEFAULT_CONFIG.companies.default };
+}
+
+function extractJsonObject(text) {
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start === -1 || end === -1 || end <= start) return null;
+  return readJsonFromString(text.slice(start, end + 1));
+}
+
+function readJsonFromString(text) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
+function readOpenClawMcp() {
+  if (!commandExists("openclaw")) return { ok: false, servers: {}, reason: "openclaw command not found" };
+  const result = run("openclaw", ["mcp", "show"], { timeout: 30000 });
+  if (!result.ok) return { ok: false, servers: {}, reason: result.stderr || result.stdout || "openclaw mcp show failed" };
+  const parsed = extractJsonObject(result.stdout);
+  return { ok: true, servers: parsed || {}, raw: result.stdout };
+}
+
+function readOpenClawConfigSummary() {
+  const file = expand("~/.openclaw/openclaw.json");
+  const config = readJson(file, {});
+  const telegram = config?.channels?.telegram || {};
+  const memoryWiki = config?.plugins?.entries?.["memory-wiki"] || {};
+  return {
+    path: file,
+    telegramEnabled: Boolean(telegram.enabled),
+    telegramAllowFromCount: Array.isArray(telegram.allowFrom) ? telegram.allowFrom.length : 0,
+    memoryWikiEnabled: Boolean(memoryWiki.enabled),
+    memoryWikiVault: memoryWiki?.config?.vault?.path || ""
+  };
+}
+
+function readGogAccounts() {
+  if (!commandExists("gog")) return { ok: false, accounts: [], reason: "gog command not found" };
+  const result = run("gog", ["auth", "list"], { timeout: 30000 });
+  if (!result.ok) return { ok: false, accounts: [], reason: result.stderr || result.stdout || "gog auth list failed" };
+  const accounts = result.stdout
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const parts = line.split(/\s+/);
+      return {
+        email: parts[0] || "",
+        label: parts[1] || "",
+        services: parts[2] ? parts[2].split(",") : []
+      };
+    })
+    .filter((account) => account.email.includes("@"));
+  return { ok: true, accounts };
+}
+
+function readMcporterServers() {
+  if (!commandExists("mcporter")) return { ok: false, servers: [], reason: "mcporter command not found" };
+  const result = run("mcporter", ["list"], { timeout: 30000 });
+  if (!result.ok) return { ok: false, servers: [], reason: result.stderr || result.stdout || "mcporter list failed" };
+  if (/No MCP servers configured/i.test(result.stdout)) return { ok: true, servers: [], reason: "No MCP servers configured" };
+  const servers = result.stdout
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => line.split(/\s+/)[0]);
+  return { ok: true, servers };
+}
+
+function discoverConnectors(config) {
+  const openclawConfig = readOpenClawConfigSummary();
+  const mcp = readOpenClawMcp();
+  const gog = readGogAccounts();
+  const mcporter = readMcporterServers();
+  const obsidianBridge = path.join(DEFAULT_TOOLS_DIR, "openclaw-obsidian");
+  const obsidianOk = fs.existsSync(obsidianBridge) || commandExists("openclaw-obsidian");
+  const mcpServerNames = Object.keys(mcp.servers || {});
+  const mcporterNames = mcporter.servers || [];
+  const allServerNames = [...new Set([...mcpServerNames, ...mcporterNames])];
+  const hasMetaAds = allServerNames.some((name) => /meta|facebook|ads/i.test(name));
+  const { company } = activeCompany(config);
+
+  return {
+    generatedAt: nowIso(),
+    openclaw: {
+      installed: commandExists("openclaw"),
+      mcpOk: mcp.ok,
+      mcpServers: mcpServerNames,
+      telegramEnabled: openclawConfig.telegramEnabled,
+      memoryWikiEnabled: openclawConfig.memoryWikiEnabled,
+      memoryWikiVault: openclawConfig.memoryWikiVault
+    },
+    firebase: {
+      connected: mcpServerNames.includes("firebase") || mcporterNames.includes("firebase"),
+      project: company.firebaseProject || "",
+      via: mcpServerNames.includes("firebase") ? "openclaw-mcp" : mcporterNames.includes("firebase") ? "mcporter" : ""
+    },
+    googleWorkspace: {
+      connected: gog.ok && gog.accounts.length > 0,
+      accounts: gog.accounts,
+      selectedGmailAccount: company.gmailAccount || ""
+    },
+    obsidian: {
+      connected: obsidianOk || openclawConfig.memoryWikiEnabled,
+      bridgePath: fs.existsSync(obsidianBridge) ? obsidianBridge : "",
+      companyDir: expand(company.obsidianCompanyDir || "")
+    },
+    telegram: {
+      connected: openclawConfig.telegramEnabled,
+      notifyTargetConfigured: Boolean(config.notifyTarget)
+    },
+    metaAds: {
+      connected: hasMetaAds,
+      status: hasMetaAds ? "connected" : "connector_needed",
+      setup: hasMetaAds ? "" : "Install or configure a Meta Ads MCP/API connector, then add it to OpenClaw MCP config."
+    },
+    mcporter: {
+      configured: mcporter.ok && mcporterNames.length > 0,
+      servers: mcporterNames,
+      note: mcporter.ok ? mcporter.reason || "" : mcporter.reason
+    }
+  };
+}
+
+function connectorRows(discovery) {
+  return [
+    ["Firebase", discovery.firebase.connected, discovery.firebase.via || "missing", discovery.firebase.project || "-"],
+    ["Google Workspace", discovery.googleWorkspace.connected, "gog", discovery.googleWorkspace.selectedGmailAccount || discovery.googleWorkspace.accounts.map((a) => a.email).join(", ") || "-"],
+    ["Obsidian", discovery.obsidian.connected, discovery.obsidian.bridgePath ? "openclaw-obsidian" : "memory-wiki", discovery.obsidian.companyDir || "-"],
+    ["Telegram", discovery.telegram.connected, "openclaw channel", discovery.telegram.notifyTargetConfigured ? "target configured" : "target missing"],
+    ["Meta Ads", discovery.metaAds.connected, discovery.metaAds.status, discovery.metaAds.setup || "-"],
+    ["mcporter", discovery.mcporter.configured, "optional direct MCP", discovery.mcporter.servers.join(", ") || discovery.mcporter.note || "-"]
+  ];
+}
+
+function printStatus(discovery, asJson = false) {
+  if (asJson) {
+    console.log(JSON.stringify(discovery, null, 2));
+    return;
+  }
+  console.log("OpenClaw Work Agent status");
+  console.log(`Generated: ${discovery.generatedAt}`);
+  console.log("");
+  for (const [name, ok, via, detail] of connectorRows(discovery)) {
+    console.log(`${ok ? "OK " : "MISS"} ${name}: ${via}${detail ? ` (${detail})` : ""}`);
+  }
+}
+
+function buildReport(config, discovery, options = {}) {
+  const { key, company } = activeCompany(config);
+  const rows = connectorRows(discovery);
+  const missing = rows.filter(([, ok]) => !ok).map(([name, , via, detail]) => ({ name, via, detail }));
+  const goals = company.goals?.length ? company.goals : ["No goals configured yet"];
+  const metrics = company.metricsToWatch?.length ? company.metricsToWatch : ["No metrics configured yet"];
+  const mode = config.permissionMode === "full" ? "full-access" : "ask-then-execute";
+
+  const actionCandidates = [];
+  if (!discovery.metaAds.connected) {
+    actionCandidates.push("Connect a Meta Ads MCP/API source before asking for ad strategy or spend optimization.");
+  }
+  if (!discovery.googleWorkspace.connected) {
+    actionCandidates.push("Run Google Workspace auth setup with `gog auth add ...` for Gmail/Drive checks.");
+  }
+  if (!discovery.firebase.connected) {
+    actionCandidates.push("Connect Firebase MCP through OpenClaw before live app/database checks.");
+  }
+  if (!company.goals?.length) {
+    actionCandidates.push("Add 3-5 business goals so the agent can judge whether anomalies matter.");
+  }
+
+  const lines = [
+    "---",
+    `title: ${company.name} Work Agent Report`,
+    `generated: ${discovery.generatedAt}`,
+    `company: ${company.name}`,
+    `permission_mode: ${mode}`,
+    `scheduled: ${Boolean(options.scheduled)}`,
+    `dry_run: ${Boolean(options.dryRun)}`,
+    "---",
+    "",
+    `# ${company.name} Work Agent Report`,
+    "",
+    "## Summary",
+    "",
+    `- Active profile: ${key}`,
+    `- Permission mode: ${mode}`,
+    `- Firebase project: ${company.firebaseProject || "not configured"}`,
+    `- Notification target: ${config.notifyTarget || "not configured"}`,
+    "",
+    "## Connector Inventory",
+    "",
+    "| Source | Status | Route | Detail |",
+    "| --- | --- | --- | --- |",
+    ...rows.map(([name, ok, via, detail]) => `| ${name} | ${ok ? "connected" : "missing"} | ${via || "-"} | ${sanitizeTable(detail || "-")} |`),
+    "",
+    "## Business Goals",
+    "",
+    ...goals.map((goal) => `- ${goal}`),
+    "",
+    "## Metrics To Watch",
+    "",
+    ...metrics.map((metric) => `- ${metric}`),
+    "",
+    "## V1 UpHomes Ops Checks",
+    "",
+    "- Firebase: use OpenClaw MCP for users, properties/listings, RTDB presence, Functions logs, Remote Config, and Storage metadata.",
+    "- Gmail: use `gog` for support, feedback, billing, and partnership emails.",
+    "- Drive: use `gog` for selected docs/folders and operating notes.",
+    "- Obsidian: use the company wiki folder as the durable operating memory.",
+    "- Meta Ads: report as missing until a real connector is added.",
+    "",
+    "## Action Candidates",
+    "",
+    ...(actionCandidates.length ? actionCandidates.map((item) => `- ${item}`) : ["- No connector blockers found. Next scheduled runs should focus on live business anomalies."]),
+    "",
+    "## Permission Boundary",
+    "",
+    "- Default behavior is ask-then-execute.",
+    "- Full-access mode can be enabled, but emails/messages, deletes, deploys, app/project creation, payment/ad-spend changes, and replace-subtree database writes still require exact confirmation.",
+    "",
+    "## Suggested Skill Candidates",
+    "",
+    "- Customer feedback triage skill for recurring Gmail/app complaints.",
+    "- Firebase anomaly review skill for properties, users, online presence, and function errors.",
+    "- Meta Ads strategy skill after a connector is installed.",
+    "- Weekly founder digest skill that converts reports into decisions and next actions.",
+    ""
+  ];
+
+  return {
+    markdown: lines.join("\n"),
+    summary: {
+      company: company.name,
+      permissionMode: mode,
+      missingConnectors: missing.map((m) => m.name),
+      actionCandidates,
+      reportType: options.scheduled ? "scheduled" : "manual"
+    }
+  };
+}
+
+function sanitizeTable(value) {
+  return String(value).replace(/\|/g, "\\|").replace(/\n/g, " ");
+}
+
+function resolveReportDir(config) {
+  const { company } = activeCompany(config);
+  const configured = expand(company.obsidianCompanyDir || "");
+  if (configured) return configured;
+  return DEFAULT_REPORTS_DIR;
+}
+
+function writeReport(config, report) {
+  const reportDir = resolveReportDir(config);
+  ensureDir(reportDir);
+  const date = new Date().toISOString().slice(0, 10);
+  const file = path.join(reportDir, `${date}-work-agent-report.md`);
+  fs.writeFileSync(file, report.markdown);
+  appendJsonl(DEFAULT_LOG_PATH, { event: "report_written", file, summary: report.summary });
+  return file;
+}
+
+function sendTelegram(config, text) {
+  if (!config.notifyTarget) {
+    return { ok: false, reason: "notifyTarget not configured" };
+  }
+  if (!commandExists("openclaw")) {
+    return { ok: false, reason: "openclaw command not found" };
+  }
+  const target = String(config.notifyTarget);
+  const [channelMaybe, targetMaybe] = target.includes(":") ? target.split(/:(.+)/) : ["telegram", target];
+  const channel = channelMaybe || "telegram";
+  const to = targetMaybe || target;
+  const result = run("openclaw", ["message", "send", "--channel", channel, "--target", to, "--message", text], { timeout: 60000 });
+  appendJsonl(DEFAULT_LOG_PATH, { event: "telegram_send", ok: result.ok, target: config.notifyTarget, stderr: result.stderr });
+  return result.ok ? { ok: true } : { ok: false, reason: result.stderr || result.stdout };
+}
+
+function buildTelegramSummary(report, file) {
+  const missing = report.summary.missingConnectors.length ? report.summary.missingConnectors.join(", ") : "none";
+  const actions = report.summary.actionCandidates.slice(0, 3).map((item) => `- ${item}`).join("\n") || "- No connector blockers found.";
+  return [
+    `Work Agent report for ${report.summary.company}`,
+    `Mode: ${report.summary.permissionMode}`,
+    `Missing connectors: ${missing}`,
+    `Report: ${file}`,
+    "",
+    "Suggested actions:",
+    actions
+  ].join("\n");
+}
+
+async function initCommand(args) {
+  const configPath = expand(args.config || DEFAULT_CONFIG_PATH);
+  let config = structuredClone(DEFAULT_CONFIG);
+  if (args.from) {
+    const profile = readJson(expand(args.from), null);
+    if (!profile) fail(`Could not read profile JSON: ${args.from}`);
+    config = mergeConfig(config, profile);
+  } else if (fs.existsSync(configPath) && !args.force) {
+    config = mergeConfig(config, readJson(configPath, {}));
+  }
+
+  if (!args.yes && process.stdin.isTTY) {
+    const rl = readline.createInterface({ input, output });
+    const current = activeCompany(config).company;
+    const startupName = await ask(rl, "Startup/company name", current.name);
+    const slug = slugify(startupName);
+    const notifyTarget = await ask(rl, "Notification target, for example telegram:123456789", config.notifyTarget || process.env.WORK_AGENT_NOTIFY_TARGET || "");
+    const permissionMode = await ask(rl, "Permission mode: ask or full", config.permissionMode || "ask");
+    const firebaseProject = await ask(rl, "Firebase project ID", current.firebaseProject || "");
+    const gmailAccount = await ask(rl, "Gmail account", current.gmailAccount || "");
+    const driveFolders = await ask(rl, "Drive folder IDs or URLs, comma-separated", (current.driveFolders || []).join(", "));
+    const obsidianCompanyDir = await ask(rl, "Obsidian company folder path", current.obsidianCompanyDir || defaultObsidianCompanyDir(slug));
+    const metricsToWatch = await ask(rl, "Metrics to watch, comma-separated", (current.metricsToWatch || []).join(", "));
+    const goals = await ask(rl, "Business goals, comma-separated", (current.goals || []).join(", "));
+    rl.close();
+
+    config.activeCompany = slug;
+    config.permissionMode = normalizeMode(permissionMode);
+    config.notifyTarget = notifyTarget.trim();
+    config.companies = {
+      [slug]: {
+        ...current,
+        name: startupName,
+        slug,
+        firebaseProject: firebaseProject.trim(),
+        gmailAccount: gmailAccount.trim(),
+        driveFolders: splitList(driveFolders),
+        obsidianCompanyDir: obsidianCompanyDir.trim(),
+        metricsToWatch: splitList(metricsToWatch),
+        goals: splitList(goals)
+      }
+    };
+  }
+
+  writeJson(configPath, config);
+  ensureDir(path.dirname(DEFAULT_LOG_PATH));
+  appendJsonl(DEFAULT_LOG_PATH, { event: "init", configPath, activeCompany: config.activeCompany });
+  console.log(`Wrote Work Agent config: ${configPath}`);
+}
+
+async function ask(rl, prompt, fallback = "") {
+  const suffix = fallback ? ` [${fallback}]` : "";
+  const answer = await rl.question(`${prompt}${suffix}: `);
+  return answer.trim() || fallback;
+}
+
+function defaultObsidianCompanyDir(slug) {
+  return path.join(HOME, "Documents", "Obsidian-AI-Memory", "wiki", "projects", `${slug}-work-agent`);
+}
+
+function splitList(value) {
+  return String(value || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function slugify(value) {
+  return String(value || "company")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 60) || "company";
+}
+
+function normalizeMode(value) {
+  return /^full/i.test(String(value)) ? "full" : "ask";
+}
+
+function fail(message, code = 1) {
+  console.error(message);
+  process.exit(code);
+}
+
+function modeCommand(args) {
+  const nextMode = normalizeMode(args._[1] || "");
+  if (!["ask", "full"].includes(nextMode)) fail("Usage: openclaw-work-agent mode ask|full");
+  const { config, configPath } = loadConfig(args);
+  config.permissionMode = nextMode;
+  writeJson(configPath, config);
+  appendJsonl(DEFAULT_LOG_PATH, { event: "mode_changed", mode: nextMode });
+  console.log(`Permission mode set to ${nextMode === "full" ? "full-access" : "ask-then-execute"}`);
+}
+
+function statusCommand(args) {
+  const { config } = loadConfig(args);
+  const discovery = discoverConnectors(config);
+  printStatus(discovery, Boolean(args.json));
+}
+
+function runCommand(args) {
+  const { config } = loadConfig(args);
+  const discovery = discoverConnectors(config);
+  const report = buildReport(config, discovery, {
+    dryRun: Boolean(args["dry-run"]),
+    scheduled: Boolean(args.scheduled)
+  });
+  const file = writeReport(config, report);
+  console.log(`Wrote report: ${file}`);
+
+  const shouldNotify = Boolean(args.notify)
+    || (!args["dry-run"] && !args.scheduled && Boolean(config.notifyTarget))
+    || (!args["dry-run"] && args.scheduled && !config.quietScheduledRuns && Boolean(config.notifyTarget));
+
+  if (shouldNotify) {
+    const sent = sendTelegram(config, buildTelegramSummary(report, file));
+    console.log(sent.ok ? "Sent notification." : `Notification skipped: ${sent.reason}`);
+  } else if (args["dry-run"]) {
+    console.log("Dry run: no external notification sent.");
+  } else if (args.scheduled) {
+    console.log("Scheduled run: quiet mode, no notification sent.");
+  }
+}
+
+function askCommand(args) {
+  const question = args._.slice(1).join(" ").trim();
+  if (!question) fail("Usage: openclaw-work-agent ask <question>");
+  const { config } = loadConfig(args);
+  const discovery = discoverConnectors(config);
+  const obsidian = path.join(DEFAULT_TOOLS_DIR, "openclaw-obsidian");
+  const source = fs.existsSync(obsidian) ? obsidian : commandExists("openclaw-obsidian") ? "openclaw-obsidian" : "";
+
+  if (!source) {
+    console.log("Obsidian bridge is not installed. Use the connector status below to continue manually.");
+    printStatus(discovery);
+    return;
+  }
+
+  const result = run(source, ["search", question], { timeout: 60000 });
+  if (result.ok && result.stdout) {
+    console.log(result.stdout);
+  } else {
+    console.log("No direct Obsidian answer found. Use `/work run` to refresh the company report, then ask again.");
+    if (result.stderr) console.log(result.stderr);
+  }
+}
+
+function cronCommand(args) {
+  const sub = args._[1] || "";
+  if (sub !== "install") fail("Usage: openclaw-work-agent cron install");
+  const { config } = loadConfig(args);
+  if (!commandExists("openclaw")) fail("openclaw command not found");
+  const target = parseNotifyTarget(config.notifyTarget);
+  if (!target) fail("notifyTarget must be configured, for example telegram:123456789");
+
+  const existing = run("openclaw", ["cron", "list"], { timeout: 30000 }).stdout || "";
+  const jobs = [
+    {
+      name: "Work Agent Light Monitor",
+      every: "30m",
+      message: "/work run --scheduled light"
+    },
+    {
+      name: "Work Agent Daily Deep Report",
+      cron: "15 9 * * *",
+      message: "/work run --scheduled deep"
+    }
+  ];
+
+  for (const job of jobs) {
+    if (existing.includes(job.name)) {
+      console.log(`Cron already exists: ${job.name}`);
+      continue;
+    }
+    const addArgs = [
+      "cron", "add",
+      "--name", job.name,
+      "--message", job.message,
+      "--session", "isolated",
+      "--channel", target.channel,
+      "--to", target.target,
+      "--no-deliver",
+      "--best-effort-deliver",
+      "--timeout-seconds", "300"
+    ];
+    if (job.every) addArgs.push("--every", job.every);
+    if (job.cron) addArgs.push("--cron", job.cron, "--tz", "Asia/Kolkata");
+    const result = run("openclaw", addArgs, { timeout: 60000 });
+    console.log(result.ok ? `Installed cron: ${job.name}` : `Failed cron ${job.name}: ${result.stderr || result.stdout}`);
+  }
+}
+
+function parseNotifyTarget(value) {
+  if (!value) return null;
+  const target = String(value);
+  if (target.includes(":")) {
+    const [channel, rest] = target.split(/:(.+)/);
+    return { channel: channel || "telegram", target: rest };
+  }
+  return { channel: "telegram", target };
+}
+
+function printHelp() {
+  console.log(`OpenClaw Work Agent
+
+Usage:
+  openclaw-work-agent init [--from examples/uphomes.example.json] [--yes]
+  openclaw-work-agent status [--json]
+  openclaw-work-agent run [--dry-run] [--scheduled] [--notify]
+  openclaw-work-agent ask <question>
+  openclaw-work-agent mode ask|full
+  openclaw-work-agent cron install
+
+Runtime:
+  Config: ${DEFAULT_CONFIG_PATH}
+  Reports: configured Obsidian company folder, else ${DEFAULT_REPORTS_DIR}
+`);
+}
+
+async function main() {
+  const args = parseArgs(process.argv.slice(2));
+  const command = args._[0] || "help";
+  if (command === "help" || command === "--help" || command === "-h") return printHelp();
+  if (command === "init") return initCommand(args);
+  if (command === "status") return statusCommand(args);
+  if (command === "run") return runCommand(args);
+  if (command === "ask") return askCommand(args);
+  if (command === "mode") return modeCommand(args);
+  if (command === "cron") return cronCommand(args);
+  fail(`Unknown command: ${command}`);
+}
+
+main().catch((error) => fail(error.stack || error.message || String(error)));
