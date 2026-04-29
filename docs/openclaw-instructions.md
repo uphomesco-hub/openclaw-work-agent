@@ -19,7 +19,8 @@ Use these instructions in the OpenClaw workspace when the user asks for `/work`,
 - Before answering company questions, check the local Work Agent status and the Obsidian company wiki when useful.
 - Use installed MCP servers and skills as the source of truth. On this machine, Firebase lives in OpenClaw MCP config, Google Workspace uses `gog`, and Obsidian uses `openclaw-obsidian` / `memory-wiki`.
 - If a connector is missing, say it is missing and give short setup steps. Do not pretend it is connected.
-- Keep reports evidence-backed. Save durable findings into the configured Obsidian company folder or through `openclaw-obsidian`.
+- Keep reports evidence-backed. Save durable findings into the configured work-only Obsidian vault, defaulting to `~/Documents/Obsidian-Work-Brain`.
+- When using `openclaw-obsidian` for work-agent queries, point it at the work vault with `OPENCLAW_OBSIDIAN_VAULT` so work memory does not mix with personal memory.
 - Suggest new automations or skills when the same task appears repeatedly.
 
 ## Permission Policy

@@ -13,6 +13,7 @@ const DEFAULT_WORKSPACE_DIR = expand(process.env.OPENCLAW_WORKSPACE_DIR || "~/.o
 const DEFAULT_CONFIG_PATH = path.join(DEFAULT_STATE_DIR, "config.json");
 const DEFAULT_REPORTS_DIR = path.join(DEFAULT_STATE_DIR, "reports");
 const DEFAULT_LOG_PATH = path.join(DEFAULT_STATE_DIR, "events.jsonl");
+const DEFAULT_WORK_VAULT_DIR = expand(process.env.OPENCLAW_WORK_VAULT_DIR || "~/Documents/Obsidian-Work-Brain");
 
 const DEFAULT_CONFIG = {
   version: 1,
@@ -409,8 +410,65 @@ function resolveReportDir(config) {
   return DEFAULT_REPORTS_DIR;
 }
 
+function resolveVaultRoot(reportDir) {
+  const parts = path.resolve(reportDir).split(path.sep);
+  const wikiIndex = parts.lastIndexOf("wiki");
+  if (wikiIndex > 0) return parts.slice(0, wikiIndex).join(path.sep) || path.sep;
+  if (path.resolve(reportDir).startsWith(path.resolve(DEFAULT_WORK_VAULT_DIR))) return DEFAULT_WORK_VAULT_DIR;
+  return "";
+}
+
+function ensureWorkVault(reportDir, config) {
+  const vaultRoot = resolveVaultRoot(reportDir);
+  if (!vaultRoot) return;
+  const { company } = activeCompany(config);
+  const dirs = [
+    "raw",
+    "raw/sources",
+    "raw/assets",
+    "wiki",
+    "wiki/sources",
+    "wiki/concepts",
+    "wiki/entities",
+    "wiki/projects",
+    "wiki/questions",
+    "wiki/reports",
+    "wiki/syntheses"
+  ];
+  for (const dir of dirs) ensureDir(path.join(vaultRoot, dir));
+
+  const indexPath = path.join(vaultRoot, "wiki", "index.md");
+  if (!fs.existsSync(indexPath)) {
+    fs.writeFileSync(indexPath, [
+      "# Work Brain Index",
+      "",
+      "This is the dedicated Obsidian work vault for OpenClaw Work Agent.",
+      "",
+      "## Companies",
+      "",
+      `- [[projects/${company.slug}-work-agent|${company.name} Work Agent]]`,
+      "",
+      "## System Pages",
+      "",
+      "- [[log|Work Brain Log]]",
+      ""
+    ].join("\n"));
+  }
+
+  const logPath = path.join(vaultRoot, "wiki", "log.md");
+  if (!fs.existsSync(logPath)) {
+    fs.writeFileSync(logPath, [
+      "# Work Brain Log",
+      "",
+      `- ${nowIso()} - Work vault initialized for ${company.name}.`,
+      ""
+    ].join("\n"));
+  }
+}
+
 function writeReport(config, report) {
   const reportDir = resolveReportDir(config);
+  ensureWorkVault(reportDir, config);
   ensureDir(reportDir);
   const date = new Date().toISOString().slice(0, 10);
   const file = path.join(reportDir, `${date}-work-agent-report.md`);
@@ -506,7 +564,7 @@ async function ask(rl, prompt, fallback = "") {
 }
 
 function defaultObsidianCompanyDir(slug) {
-  return path.join(HOME, "Documents", "Obsidian-AI-Memory", "wiki", "projects", `${slug}-work-agent`);
+  return path.join(DEFAULT_WORK_VAULT_DIR, "wiki", "projects", `${slug}-work-agent`);
 }
 
 function splitList(value) {
@@ -578,6 +636,9 @@ function askCommand(args) {
   if (!question) fail("Usage: openclaw-work-agent ask <question>");
   const { config } = loadConfig(args);
   const discovery = discoverConnectors(config);
+  const { company } = activeCompany(config);
+  const reportDir = expand(company.obsidianCompanyDir || defaultObsidianCompanyDir(company.slug || "company"));
+  const vaultRoot = resolveVaultRoot(reportDir);
   const obsidian = path.join(DEFAULT_TOOLS_DIR, "openclaw-obsidian");
   const source = fs.existsSync(obsidian) ? obsidian : commandExists("openclaw-obsidian") ? "openclaw-obsidian" : "";
 
@@ -587,7 +648,10 @@ function askCommand(args) {
     return;
   }
 
-  const result = run(source, ["search", question], { timeout: 60000 });
+  const result = run(source, ["search", question], {
+    timeout: 60000,
+    env: vaultRoot ? { OPENCLAW_OBSIDIAN_VAULT: vaultRoot } : {}
+  });
   if (result.ok && result.stdout) {
     console.log(result.stdout);
   } else {

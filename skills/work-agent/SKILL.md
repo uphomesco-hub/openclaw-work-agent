@@ -11,7 +11,7 @@ This skill turns OpenClaw into a company operating agent. It uses installed MCPs
 
 1. Run `~/.openclaw/tools/openclaw-work-agent status` to inspect available connectors.
 2. Use the company profile in `~/.openclaw/work-agent/config.json` as the operating context.
-3. Use Obsidian reports and wiki pages as durable memory before answering strategic or historical questions.
+3. Use the dedicated work-only Obsidian vault reports and wiki pages as durable memory before answering strategic or historical questions.
 4. Use MCPs and local skills for live data only when they are actually connected.
 5. If a connector is missing, give setup steps instead of inventing data.
 6. Save durable findings and recurring workflows into Obsidian.
@@ -47,7 +47,7 @@ Confirmation must include the exact target, intended change, and likely impact.
 
 - Firebase: prefer OpenClaw MCP config; query live data through available Firebase MCP tools.
 - Google Workspace: use `gog` for Gmail, Drive, Docs, Sheets, and Calendar.
-- Obsidian: use `openclaw-obsidian` and the configured company wiki folder.
+- Obsidian: use `openclaw-obsidian` with the configured work vault path, defaulting to `~/Documents/Obsidian-Work-Brain`.
 - Telegram: use OpenClaw message delivery for concise alerts.
 - Meta Ads: treat as missing until an MCP/API connector is present.
 

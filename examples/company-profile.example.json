@@ -18,7 +18,7 @@
       "driveFolders": [
         "https://drive.google.com/drive/folders/example-folder-id"
       ],
-      "obsidianCompanyDir": "$HOME/Documents/Obsidian-AI-Memory/wiki/projects/example-startup-work-agent",
+      "obsidianCompanyDir": "$HOME/Documents/Obsidian-Work-Brain/wiki/projects/example-startup-work-agent",
       "metricsToWatch": [
         "new users per day",
         "support emails from last 24h",

@@ -17,7 +17,7 @@
       "firebaseProject": "your-firebase-project-id",
       "gmailAccount": "founder@example.com",
       "driveFolders": [],
-      "obsidianCompanyDir": "$HOME/Documents/Obsidian-AI-Memory/wiki/projects/uphomes-work-agent",
+      "obsidianCompanyDir": "$HOME/Documents/Obsidian-Work-Brain/wiki/projects/uphomes-work-agent",
       "metricsToWatch": [
         "new users",
         "new or updated properties",

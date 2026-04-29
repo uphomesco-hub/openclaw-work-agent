@@ -6,7 +6,7 @@ It gives OpenClaw a company operating layer that can:
 
 - detect connected company sources
 - keep a local company profile
-- write Obsidian-backed work reports
+- write Obsidian-backed work reports into a dedicated work-only vault
 - monitor business and ops signals on a schedule
 - suggest automations and skills from repeated work
 - support default ask-then-execute mode and explicit full-access mode
@@ -39,6 +39,7 @@ This installs:
 ~/.openclaw/tools/openclaw-work-agent
 ~/.openclaw/workspace/skills/work-agent/SKILL.md
 ~/.openclaw/work-agent/config.json
+~/Documents/Obsidian-Work-Brain/
 ```
 
 It also appends `/work` routing notes to the OpenClaw workspace `AGENTS.md` and `TOOLS.md` if those files exist.
@@ -64,6 +65,30 @@ The local config lives at:
 ```
 
 Do not commit that file.
+
+The dedicated work vault defaults to:
+
+```text
+~/Documents/Obsidian-Work-Brain
+```
+
+The CLI creates this wiki-style layout on first report:
+
+```text
+raw/
+  sources/
+  assets/
+wiki/
+  index.md
+  log.md
+  sources/
+  concepts/
+  entities/
+  projects/
+  questions/
+  reports/
+  syntheses/
+```
 
 ## Commands
 
@@ -127,7 +152,7 @@ Scheduled runs are quiet by default. Reports are written to the configured Obsid
 
 - Firebase project: replace with your Firebase project ID
 - Gmail account: replace with your Google Workspace account
-- Obsidian folder: `~/Documents/Obsidian-AI-Memory/wiki/projects/uphomes-work-agent`
+- Obsidian folder: `~/Documents/Obsidian-Work-Brain/wiki/projects/uphomes-work-agent`
 - Telegram target: replace with your OpenClaw Telegram chat ID
 
 This file has no secrets. It is an example profile only.
