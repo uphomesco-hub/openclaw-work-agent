@@ -9,7 +9,7 @@ This skill turns OpenClaw into a company operating agent. It uses installed MCPs
 
 ## Core Workflow
 
-1. Run `~/.openclaw/tools/openclaw-work-agent status` to inspect available connectors.
+1. Internally inspect connector status with the Work Agent CLI when needed.
 2. Use the company profile in `~/.openclaw/work-agent/config.json` as the operating context.
 3. Use the dedicated work-only Obsidian vault reports and wiki pages as durable memory before answering strategic or historical questions.
 4. Use MCPs and local skills for live data only when they are actually connected.
@@ -17,18 +17,18 @@ This skill turns OpenClaw into a company operating agent. It uses installed MCPs
 6. Save durable findings and recurring workflows into Obsidian.
 7. Suggest a new skill when a task repeats.
 
-## Commands
+## User Experience
 
-- `/work init`: start or update onboarding.
-- `/work status`: show connected and missing company sources.
-- `/work run`: perform a current company check and write a report.
-- `/work run --dry-run`: write a report without external notifications.
-- `/work ask <question>`: answer from the company brain and connected sources.
-- `/work mode ask`: use ask-then-execute mode.
-- `/work mode full`: enable full-access mode with confirmation guardrails.
-- `/work thresholds show`: inspect configured business thresholds.
-- `/work thresholds set-gmail ...`: update important-mail threshold terms, lookback, or count.
-- `/work cron install`: install scheduled light and daily checks.
+The user should only need `/work`.
+
+- `/work` enters work mode.
+- If onboarding is incomplete, ask one plain-English question.
+- Save each plain-English answer with the internal `answer` command.
+- Do not ask completed onboarding questions again.
+- Once onboarding is complete, summarize what the agent understands: company, goals, sources, watched signals, permission mode, and missing connectors.
+- After that, all work-mode interaction should be normal plain English.
+
+Internal commands exist for OpenClaw and setup scripts, but do not present them as the workflow unless the user asks for technical details.
 
 ## Permission Boundary
 
@@ -75,3 +75,13 @@ Use thresholds as candidate generators for:
 - repeated manual work that should become a skill
 
 When a threshold fires, do not treat it as the final answer. Use OpenClaw reasoning and connected sources to decide whether it is actually important, update the work vault, and propose the next action. Do not send external replies or mutate production systems without the permission policy above.
+
+## Engineering And Data Fixes
+
+For Firebase, backend, database, Cloud Functions, or repository issues:
+
+- Explain what appears wrong in plain English.
+- Say whether it looks urgent.
+- Offer "I can fix this if you want" when access exists.
+- Offer "we should assign this to the dev team" when it should be reviewed or is outside current access.
+- Ask before writing, deleting, deploying, sending messages, or changing production data.

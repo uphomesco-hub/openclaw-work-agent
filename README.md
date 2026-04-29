@@ -90,36 +90,19 @@ wiki/
   syntheses/
 ```
 
-## Commands
+## Plain-English Use
 
-```bash
-openclaw-work-agent status
-openclaw-work-agent status --json
-openclaw-work-agent run --dry-run
-openclaw-work-agent run --notify
-openclaw-work-agent ask "what do we know about refund handling?"
-openclaw-work-agent mode ask
-openclaw-work-agent mode full
-openclaw-work-agent thresholds show
-openclaw-work-agent thresholds set-gmail --terms "feedback,bug,refund,not working" --lookback 1d --count 1
-openclaw-work-agent cron install
-```
-
-OpenClaw command mapping:
+The user-facing workflow is only:
 
 ```text
-/work init
-/work status
-/work run
-/work run --dry-run
-/work ask what changed in support this week?
-/work mode ask
-/work mode full
-/work thresholds show
-/work cron install
+/work
 ```
 
-## Light Monitor, Deep Report, And Thresholds
+OpenClaw handles the internal CLI calls. If onboarding is incomplete, it asks one plain-English question at a time and stores the answer. After onboarding is complete, `/work` shows what it understands and the user can continue in plain English.
+
+Internal commands exist for setup scripts and debugging, but the user should not need them.
+
+## Light Monitor, Deep Report, And Candidate Signals
 
 `Work Agent Light Monitor` is the frequent OpenClaw brain loop. It runs every 30 minutes, asks the CLI to collect signals, then OpenClaw reasons over those signals using company context, connected tools, and the work vault. It only notifies when action is required.
 
@@ -158,13 +141,7 @@ Confirmation should include the exact target, intended change, and likely impact
 
 ## Always-On Loop
 
-Install scheduled checks:
-
-```bash
-openclaw-work-agent cron install
-```
-
-This creates:
+The installer or OpenClaw can create scheduled checks internally:
 
 - `Work Agent Light Monitor`: every 30 minutes
 - `Work Agent Daily Deep Report`: daily at 09:15 Asia/Kolkata
@@ -190,7 +167,6 @@ Before publishing:
 
 ```bash
 npm run check
-openclaw-work-agent run --dry-run
 git status --short
 ```
 

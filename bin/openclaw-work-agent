@@ -70,6 +70,12 @@ const DEFAULT_CONFIG = {
           notifyOnlyWhenActionRequired: true
         }
       },
+      onboarding: {
+        completed: false,
+        currentStep: "startupName",
+        answered: [],
+        completedAt: ""
+      },
       approvalPolicy: {
         defaultMode: "ask",
         alwaysConfirm: [
@@ -195,6 +201,41 @@ function activeCompany(config) {
   const company = config.companies?.[key] || config.companies?.default || {};
   return { key, company: mergeConfig(DEFAULT_CONFIG.companies.default, company) };
 }
+
+const ONBOARDING_STEPS = [
+  {
+    id: "startupName",
+    question: "What startup or company should I operate for?"
+  },
+  {
+    id: "businessSummary",
+    question: "In plain English, what does this company do and who is it for?"
+  },
+  {
+    id: "goals",
+    question: "What are the main business goals I should optimize for right now?"
+  },
+  {
+    id: "connectors",
+    question: "Which sources should I understand for this company? You can say things like Firebase, Gmail, Drive, Meta Ads, Slack, or Obsidian."
+  },
+  {
+    id: "firebaseProject",
+    question: "If this company has Firebase or another database, what project or database should I watch? If not, say none."
+  },
+  {
+    id: "gmailAccount",
+    question: "Which email account should I watch for feedback, leads, support, or urgent messages?"
+  },
+  {
+    id: "importantSignals",
+    question: "What kinds of changes should make me pay attention? For example angry customer mail, payment issues, app errors, new high-value leads, low signups, or ad spend changes."
+  },
+  {
+    id: "allowedActions",
+    question: "What should I be allowed to do by myself, and what should I only suggest or ask before doing?"
+  }
+];
 
 function extractJsonObject(text) {
   const start = text.indexOf("{");
@@ -670,6 +711,195 @@ function buildTelegramSummary(report, file) {
   ].join("\n");
 }
 
+function getOnboardingState(company) {
+  const onboarding = company.onboarding || {};
+  if (onboarding.completed) return { ...onboarding, completed: true };
+  const hasExplicitProgress = Boolean(onboarding.currentStep || (onboarding.answered || []).length);
+  if (!hasExplicitProgress && hasEnoughCompanyContext(company)) {
+    return {
+      ...onboarding,
+      completed: true,
+      currentStep: "",
+      answered: onboarding.answered || [],
+      inferred: true
+    };
+  }
+  return {
+    completed: false,
+    currentStep: onboarding.currentStep || "startupName",
+    answered: onboarding.answered || [],
+    completedAt: onboarding.completedAt || ""
+  };
+}
+
+function hasEnoughCompanyContext(company) {
+  return Boolean(
+    company.name
+    && company.name !== "My Startup"
+    && (company.goals || []).length
+    && (company.metricsToWatch || []).length
+    && (company.firebaseProject || company.gmailAccount || company.obsidianCompanyDir)
+  );
+}
+
+function currentOnboardingStep(onboarding) {
+  return ONBOARDING_STEPS.find((step) => step.id === onboarding.currentStep) || ONBOARDING_STEPS[0];
+}
+
+function nextOnboardingStepId(currentStepId) {
+  const index = ONBOARDING_STEPS.findIndex((step) => step.id === currentStepId);
+  const next = ONBOARDING_STEPS[index + 1];
+  return next?.id || "";
+}
+
+function formatWorkHome(config, discovery) {
+  const { key, company } = activeCompany(config);
+  const onboarding = getOnboardingState(company);
+  if (!onboarding.completed) {
+    const step = currentOnboardingStep(onboarding);
+    return [
+      "Work mode is starting. I need to understand this company once, then I will not ask the same setup questions again.",
+      "",
+      `Question ${ONBOARDING_STEPS.findIndex((item) => item.id === step.id) + 1} of ${ONBOARDING_STEPS.length}:`,
+      step.question
+    ].join("\n");
+  }
+
+  const rows = connectorRows(discovery);
+  const connected = rows.filter(([, ok]) => ok).map(([name]) => name);
+  const missing = rows.filter(([, ok]) => !ok).map(([name]) => name);
+  const lastReport = latestReportPath(config);
+  return [
+    `Work mode is on for ${company.name}.`,
+    "",
+    "What I understand:",
+    `- Company: ${company.name}`,
+    `- Goals: ${(company.goals || []).join("; ") || "not set"}`,
+    `- I should watch: ${(company.metricsToWatch || []).join("; ") || "not set"}`,
+    `- Connected sources: ${connected.join(", ") || "none yet"}`,
+    `- Missing or optional sources: ${missing.join(", ") || "none"}`,
+    `- Permission mode: ${config.permissionMode === "full" ? "full access, but sensitive actions still require confirmation" : "ask before execution"}`,
+    `- Work vault: ${resolveVaultRoot(expand(company.obsidianCompanyDir || defaultObsidianCompanyDir(company.slug || key))) || DEFAULT_WORK_VAULT_DIR}`,
+    lastReport ? `- Latest report: ${lastReport}` : "- Latest report: not created yet",
+    "",
+    "Tell me what you want in plain English. I can inspect the connected sources, summarize what changed, suggest fixes, or ask before taking action."
+  ].join("\n");
+}
+
+function latestReportPath(config) {
+  const reportDir = resolveReportDir(config);
+  if (!fs.existsSync(reportDir)) return "";
+  const files = fs.readdirSync(reportDir)
+    .filter((name) => /work-agent-report\.md$/.test(name))
+    .sort()
+    .reverse();
+  return files[0] ? path.join(reportDir, files[0]) : "";
+}
+
+function homeCommand(args) {
+  const { config } = loadConfig(args);
+  const discovery = discoverConnectors(config);
+  console.log(formatWorkHome(config, discovery));
+}
+
+function answerCommand(args) {
+  const answer = args._.slice(1).join(" ").trim();
+  if (!answer) fail("Missing onboarding answer.");
+  const { config, configPath } = loadConfig(args);
+  const key = config.activeCompany || "default";
+  const company = mergeConfig(DEFAULT_CONFIG.companies.default, config.companies?.[key] || {});
+  const onboarding = getOnboardingState(company);
+  if (onboarding.completed) {
+    console.log(formatWorkHome(config, discoverConnectors(config)));
+    return;
+  }
+
+  const step = currentOnboardingStep(onboarding);
+  const updated = applyOnboardingAnswer(config, key, company, step.id, answer);
+  const updatedKey = updated.activeCompany || key;
+  const updatedCompany = updated.companies[updatedKey];
+  const nextStepId = nextOnboardingStepId(step.id);
+  updated.companies[updatedKey].onboarding = {
+    completed: !nextStepId,
+    currentStep: nextStepId,
+    answered: [...(updatedCompany.onboarding?.answered || company.onboarding?.answered || []), step.id],
+    completedAt: nextStepId ? "" : nowIso()
+  };
+  writeJson(configPath, updated);
+
+  if (nextStepId) {
+    const next = ONBOARDING_STEPS.find((item) => item.id === nextStepId);
+    console.log([
+      "Got it. I saved that.",
+      "",
+      `Next question ${ONBOARDING_STEPS.findIndex((item) => item.id === next.id) + 1} of ${ONBOARDING_STEPS.length}:`,
+      next.question
+    ].join("\n"));
+    return;
+  }
+
+  const discovery = discoverConnectors(updated);
+  const report = buildReport(updated, discovery, { dryRun: true, scheduled: false });
+  const file = writeReport(updated, report);
+  console.log([
+    "Onboarding is complete. I will not ask those setup questions again unless you add something new.",
+    "",
+    formatWorkHome(updated, discovery),
+    "",
+    `I also wrote the first work-brain report here: ${file}`
+  ].join("\n"));
+}
+
+function applyOnboardingAnswer(config, key, company, stepId, answer) {
+  const updated = structuredClone(config);
+  const target = {
+    ...company,
+    onboarding: { ...(company.onboarding || {}) }
+  };
+  if (stepId === "startupName") {
+    target.name = answer;
+    target.slug = slugify(answer);
+    if (key === "default") {
+      delete updated.companies.default;
+      updated.activeCompany = target.slug;
+      updated.companies[target.slug] = target;
+      if (!target.obsidianCompanyDir) target.obsidianCompanyDir = defaultObsidianCompanyDir(target.slug);
+      return updated;
+    }
+  }
+  if (stepId === "businessSummary") target.businessSummary = answer;
+  if (stepId === "goals") target.goals = splitPlainList(answer);
+  if (stepId === "connectors") target.connectorsWanted = splitPlainList(answer);
+  if (stepId === "firebaseProject") target.firebaseProject = noneToEmpty(answer);
+  if (stepId === "gmailAccount") target.gmailAccount = noneToEmpty(answer);
+  if (stepId === "importantSignals") {
+    target.metricsToWatch = splitPlainList(answer);
+    target.thresholds = target.thresholds || structuredClone(DEFAULT_CONFIG.companies.default.thresholds);
+    target.thresholds.gmailImportant = {
+      ...DEFAULT_CONFIG.companies.default.thresholds.gmailImportant,
+      ...(target.thresholds.gmailImportant || {}),
+      queryTerms: splitPlainList(answer).slice(0, 20)
+    };
+  }
+  if (stepId === "allowedActions") target.allowedActions = answer;
+  if (!target.obsidianCompanyDir) target.obsidianCompanyDir = defaultObsidianCompanyDir(target.slug || key);
+  updated.companies[updated.activeCompany || key] = target;
+  return updated;
+}
+
+function splitPlainList(value) {
+  const text = String(value || "").trim();
+  if (!text) return [];
+  return text
+    .split(/\n|,|;|\band\b/i)
+    .map((item) => item.replace(/^[-*0-9. )]+/, "").trim())
+    .filter(Boolean);
+}
+
+function noneToEmpty(value) {
+  return /^(none|no|not now|skip|n\/a)$/i.test(String(value).trim()) ? "" : String(value).trim();
+}
+
 async function initCommand(args) {
   const configPath = expand(args.config || DEFAULT_CONFIG_PATH);
   let config = structuredClone(DEFAULT_CONFIG);
@@ -948,6 +1178,8 @@ function printHelp() {
   console.log(`OpenClaw Work Agent
 
 Usage:
+  openclaw-work-agent
+  openclaw-work-agent answer "plain English onboarding answer"
   openclaw-work-agent init [--from examples/uphomes.example.json] [--yes]
   openclaw-work-agent status [--json]
   openclaw-work-agent run [--dry-run] [--scheduled] [--notify]
@@ -965,8 +1197,10 @@ Runtime:
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
-  const command = args._[0] || "help";
+  const command = args._[0] || "home";
   if (command === "help" || command === "--help" || command === "-h") return printHelp();
+  if (command === "home") return homeCommand(args);
+  if (command === "answer") return answerCommand(args);
   if (command === "init") return initCommand(args);
   if (command === "status") return statusCommand(args);
   if (command === "run") return runCommand(args);

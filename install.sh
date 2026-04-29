@@ -26,22 +26,21 @@ if [[ -f "$AGENTS_MD" ]] && ! grep -q "### OpenClaw Work Agent" "$AGENTS_MD"; th
 
 ### OpenClaw Work Agent
 
-When the user starts a message with `/work` or asks for the company/work agent, use:
+The only user-facing command is `/work`.
+
+When the user sends `/work` or asks to switch to work mode, run:
 
 ```bash
-~/.openclaw/tools/openclaw-work-agent <command>
+~/.openclaw/tools/openclaw-work-agent
 ```
 
-Command mapping:
+If the CLI asks an onboarding question, treat the user's next plain-English reply as the answer and run:
 
-- `/work init` -> `openclaw-work-agent init`
-- `/work status` -> `openclaw-work-agent status`
-- `/work run` -> `openclaw-work-agent run`
-- `/work run --dry-run` -> `openclaw-work-agent run --dry-run`
-- `/work ask <question>` -> `openclaw-work-agent ask "<question>"`
-- `/work mode ask` -> `openclaw-work-agent mode ask`
-- `/work mode full` -> `openclaw-work-agent mode full`
-- `/work cron install` -> `openclaw-work-agent cron install`
+```bash
+~/.openclaw/tools/openclaw-work-agent answer "<full user reply>"
+```
+
+Do not make the user run setup/status/threshold/cron commands. Handle those internally. Once onboarding is complete, `/work` should summarize the company, connected sources, watched signals, permission mode, and work-vault location in plain English.
 
 Default behavior is ask-then-execute. Even in full-access mode, ask before sending emails/messages, deleting data, replacing database subtrees, deploying, creating external resources, or changing payment/ad-spend settings.
 EOF
@@ -55,11 +54,9 @@ if [[ -f "$TOOLS_MD" ]] && ! grep -q "### OpenClaw Work Agent" "$TOOLS_MD"; then
 - CLI: `~/.openclaw/tools/openclaw-work-agent`
 - Runtime config: `~/.openclaw/work-agent/config.json`
 - Reports: configured company Obsidian folder, or `~/.openclaw/work-agent/reports`
-- Main commands:
-  - `openclaw-work-agent status`
-  - `openclaw-work-agent run --dry-run`
-  - `openclaw-work-agent mode ask|full`
-  - `openclaw-work-agent cron install`
+- User-facing entrypoint: `/work`
+- Internal CLI entrypoint: `openclaw-work-agent`
+- Internal onboarding answer handler: `openclaw-work-agent answer "<plain English answer>"`
 EOF
 fi
 
@@ -75,7 +72,6 @@ Skill:
 Config:
   $STATE_DIR/config.json
 
-Next:
-  openclaw-work-agent status
-  openclaw-work-agent run --dry-run
+Next in OpenClaw:
+  /work
 EOF
