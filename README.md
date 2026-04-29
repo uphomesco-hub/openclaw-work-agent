@@ -196,6 +196,14 @@ Scheduled runs are quiet by default. Reports are written to the configured Obsid
 
 Urgent watch is near-instant polling, not true webhook push. With the default 2-minute interval, a new important Gmail/support message should usually be detected within a couple of minutes. True instant delivery requires source-specific webhooks such as Gmail push/watch.
 
+For reliable near-instant local checks on macOS, install the LaunchAgent watcher:
+
+```bash
+./launchd/install-urgent-watch.sh
+```
+
+It runs `openclaw-work-agent run --scheduled urgent` every 120 seconds and logs under `~/.openclaw/work-agent/logs/`.
+
 For scheduled runs, Telegram is sent only when connected sources produce a real finding or threshold says action is required. Missing connectors are setup context only; they stay in reports/status output and do not trigger alerts. Manual `run` commands also stay local unless `--notify` is explicitly passed.
 
 ## UpHomes Validation Profile

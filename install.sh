@@ -111,6 +111,9 @@ Agent profile:
 Config:
   $STATE_DIR/config.json
 
+Optional urgent watcher:
+  $ROOT/launchd/install-urgent-watch.sh
+
 Next in OpenClaw:
   /work
 EOF

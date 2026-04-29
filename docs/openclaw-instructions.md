@@ -75,7 +75,7 @@ If the user approves a fix and the work is coding-related, use the configured Co
 
 - Scheduled Ops Brain jobs are OpenClaw brain loops, not raw keyword jobs.
 - The CLI collects connector status, candidates, and reports; OpenClaw then reasons over those candidates using company context, connected tools, and the work vault.
-- Urgent watch runs every 2 minutes for high-signal connected-source findings such as urgent Gmail/support/emergency messages. It should dedupe alerts and stay silent when nothing new matters.
+- Urgent watch runs every 2 minutes for high-signal connected-source findings such as urgent Gmail/support/emergency messages. Prefer the direct LaunchAgent watcher for this lane so it does not depend on an agent response every 2 minutes. It should dedupe alerts and stay silent when nothing new matters.
 - Scheduled light monitor should stay quiet unless OpenClaw judges there is a clear issue or action needed.
 - Daily deep report should write to Obsidian, synthesize context, suggest thresholds/automations, update playbooks, and only notify the user when there are decisions to make.
 - Notifications should be based on connected-source findings, not connector gaps. Missing setup can stay in the Obsidian report or be shown when the user asks for setup/status.
