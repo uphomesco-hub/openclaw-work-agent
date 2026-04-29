@@ -56,6 +56,14 @@ Use the installed agent profile for behavior and safety rules:
 
 If the CLI says onboarding is complete, do not stop there. Use OpenClaw brain/tool access to inspect connected sources when useful: Firebase, Gmail, Drive, Obsidian, website files, GitHub/local repos, Telegram, and any installed MCPs. Build a short live company snapshot before replying.
 
+After meaningful work, update the closed-loop learning memory with:
+
+```bash
+~/.openclaw/tools/openclaw-work-agent learn --task "..." --result "..." --sources "..." --steps "..." --slow "..." --faster "..." --next "..."
+```
+
+Keep this internal. The user should only see that `/work` remembers prior work, reuses faster playbooks, and suggests better automations.
+
 Default behavior is ask-then-execute. Even in full-access mode, ask before sending emails/messages, deleting data, replacing database subtrees, deploying, creating external resources, or changing payment/ad-spend settings.
 
 ### End OpenClaw Ops Brain
@@ -78,6 +86,7 @@ if [[ -f "$TOOLS_MD" ]]; then
 - User-facing entrypoint: `/work`
 - Internal CLI entrypoint: `openclaw-work-agent`
 - Internal onboarding answer handler: `openclaw-work-agent answer "<plain English answer>"`
+- Internal learning handler: `openclaw-work-agent learn --task "..." --result "..." --faster "..."`
 
 ### End OpenClaw Ops Brain
 EOF

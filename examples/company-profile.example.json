@@ -4,6 +4,12 @@
   "permissionMode": "ask",
   "notifyTarget": "telegram:123456789",
   "quietScheduledRuns": true,
+  "learningLoop": {
+    "enabled": true,
+    "captureEveryWorkTask": true,
+    "writePlaybooks": true,
+    "lookForFasterPath": true
+  },
   "companies": {
     "example-startup": {
       "name": "Example Startup",

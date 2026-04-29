@@ -26,6 +26,7 @@ Think in five layers:
 3. Live snapshot: what is happening now across product, customers, content, backend, and ops.
 4. Work memory: durable conclusions in the dedicated Obsidian work vault.
 5. Action policy: what can be suggested, what can be fixed, and what requires exact confirmation.
+6. Learning loop: what was done, what was slow, and how to do it faster next time.
 
 ## What To Understand
 
@@ -56,6 +57,32 @@ If the user names a source that is not connected yet, respond with:
 - the shortest steps for the user or engineer to connect it
 
 Do this for any source, not only the built-in examples.
+
+## Closed Loop Learning
+
+After every meaningful work task, improve the next run.
+
+Before starting repeated work:
+
+1. Check the work vault learning loop and playbooks.
+2. Reuse the fastest proven path when it still fits.
+3. Verify live data before acting on stale memory.
+
+After finishing work:
+
+1. Record what task was done.
+2. Record which tools, MCPs, files, repos, or sources were useful.
+3. Record what was slow, repetitive, confusing, or unnecessary.
+4. Record the faster path or playbook for next time.
+5. If the task should become automation, mark it as a skill/workflow candidate.
+
+Use this internal command when useful:
+
+```bash
+~/.openclaw/tools/openclaw-work-agent learn --task "..." --result "..." --sources "..." --steps "..." --slow "..." --faster "..." --next "..."
+```
+
+Do not expose this as user workflow. The user should only experience that Ops Brain gets faster and remembers what worked.
 
 For a Firebase-backed rental marketplace, check:
 

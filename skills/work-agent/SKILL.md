@@ -17,6 +17,7 @@ This skill turns OpenClaw into Ops Brain, a company operating agent. It uses ins
 6. If a connector is missing, give setup steps instead of inventing data.
 7. Save durable findings and recurring workflows into Obsidian.
 8. Suggest a new skill when a task repeats.
+9. Record closed-loop learning after meaningful tasks so the next run is faster.
 
 ## User Experience
 
@@ -47,6 +48,25 @@ The agent should build and maintain an operating map:
 - decision rules
 
 The point is not just to connect tools. The point is to know what each tool means for the business.
+
+## Closed Loop Learning
+
+Before doing repeated work, check the work vault for existing playbooks and learning notes. After doing work, record:
+
+- task completed
+- sources/tools used
+- steps taken
+- slow or repeated parts
+- faster path next time
+- whether this should become a skill or workflow
+
+Use the internal command:
+
+```bash
+~/.openclaw/tools/openclaw-work-agent learn --task "..." --result "..." --sources "..." --steps "..." --slow "..." --faster "..." --next "..."
+```
+
+Keep this internal. The user should feel that `/work` improves and gets faster over time.
 
 ## Permission Boundary
 
@@ -81,6 +101,7 @@ Reports should be short, evidence-backed, and decision-oriented:
 - What needs a decision
 - What can be automated next
 - What source/tool was used
+- What faster path or reusable playbook was learned
 
 ## Thresholds
 
@@ -114,5 +135,6 @@ When `/work` is entered after onboarding, enrich the CLI summary with OpenClaw b
 - Website/content: latest blog and review seeds, what content is running, what topic might perform better, and SEO/conversion improvements.
 - Repos/GitHub: latest commit/push, dirty local changes, branches, and whether a fix should be handled now or assigned.
 - Obsidian: update the work brain with what was learned.
+- Learning loop: update Ops Brain playbooks when a task can be done faster next time.
 
 Keep the final user-facing answer plain English and decision-oriented.

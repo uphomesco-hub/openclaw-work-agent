@@ -4,6 +4,12 @@
   "permissionMode": "ask",
   "notifyTarget": "telegram:YOUR_TELEGRAM_CHAT_ID",
   "quietScheduledRuns": true,
+  "learningLoop": {
+    "enabled": true,
+    "captureEveryWorkTask": true,
+    "writePlaybooks": true,
+    "lookForFasterPath": true
+  },
   "companies": {
     "uphomes": {
       "name": "UpHomes",

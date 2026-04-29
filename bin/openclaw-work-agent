@@ -21,6 +21,12 @@ const DEFAULT_CONFIG = {
   permissionMode: "ask",
   notifyTarget: "",
   quietScheduledRuns: true,
+  learningLoop: {
+    enabled: true,
+    captureEveryWorkTask: true,
+    writePlaybooks: true,
+    lookForFasterPath: true
+  },
   companies: {
     default: {
       name: "My Startup",
@@ -637,6 +643,13 @@ function buildReport(config, discovery, options = {}) {
     "- Use repo and website context to suggest product, performance, SEO, blog, and conversion improvements.",
     "- Save important conclusions back into this work vault so the company brain compounds.",
     "",
+    "## Closed Loop Learning",
+    "",
+    "- After each work task, record what was done, which sources/tools were used, what was slow or repetitive, and what should be faster next time.",
+    "- If a better path exists, write it as a reusable playbook or optimization candidate in the work vault.",
+    "- Prefer the last successful playbook before repeating similar work, but still verify live data when correctness matters.",
+    "- Use `openclaw-work-agent learn` internally for task learnings; do not make the user run it.",
+    "",
     "## Threshold Checks",
     "",
     `- Action required: ${thresholdResult.actionRequired ? "yes" : "no"}`,
@@ -811,6 +824,7 @@ function ensureWorkVault(reportDir, config) {
     "wiki/sources",
     "wiki/concepts",
     "wiki/entities",
+    "wiki/playbooks",
     "wiki/projects",
     "wiki/questions",
     "wiki/reports",
@@ -832,6 +846,8 @@ function ensureWorkVault(reportDir, config) {
       "## System Pages",
       "",
       "- [[log|Work Brain Log]]",
+      "- [[playbooks/ops-brain-playbooks|Ops Brain Playbooks]]",
+      "- [[syntheses/ops-brain-learning|Ops Brain Learning Loop]]",
       ""
     ].join("\n"));
   }
@@ -842,6 +858,26 @@ function ensureWorkVault(reportDir, config) {
       "# Work Brain Log",
       "",
       `- ${nowIso()} - Work vault initialized for ${company.name}.`,
+      ""
+    ].join("\n"));
+  }
+
+  const learningPath = path.join(vaultRoot, "wiki", "syntheses", "ops-brain-learning.md");
+  if (!fs.existsSync(learningPath)) {
+    fs.writeFileSync(learningPath, [
+      "# Ops Brain Learning Loop",
+      "",
+      "Closed-loop notes from work tasks. Each entry should capture what happened, what was slow, and how to do it faster next time.",
+      ""
+    ].join("\n"));
+  }
+
+  const playbookPath = path.join(vaultRoot, "wiki", "playbooks", "ops-brain-playbooks.md");
+  if (!fs.existsSync(playbookPath)) {
+    fs.writeFileSync(playbookPath, [
+      "# Ops Brain Playbooks",
+      "",
+      "Reusable faster paths discovered by Ops Brain while doing company work.",
       ""
     ].join("\n"));
   }
@@ -1459,6 +1495,62 @@ function askCommand(args) {
   }
 }
 
+function learnCommand(args) {
+  const { config } = loadConfig(args);
+  const { company } = activeCompany(config);
+  const reportDir = resolveReportDir(config);
+  ensureWorkVault(reportDir, config);
+  const vaultRoot = resolveVaultRoot(reportDir);
+  if (!vaultRoot) fail("Could not resolve work vault for learning loop.");
+
+  const taskText = args.task || args._.slice(1).join(" ").trim();
+  const learning = {
+    company: company.name,
+    task: taskText || "Work task",
+    result: args.result || "",
+    sources: args.sources || args.source || "",
+    steps: args.steps || "",
+    slowParts: args.slow || "",
+    fasterPath: args.faster || "",
+    nextTime: args.next || "",
+    playbook: args.playbook || ""
+  };
+
+  const learningPath = path.join(vaultRoot, "wiki", "syntheses", "ops-brain-learning.md");
+  const playbookPath = path.join(vaultRoot, "wiki", "playbooks", "ops-brain-playbooks.md");
+  const stamp = nowIso();
+  const entry = [
+    "",
+    `## ${stamp} - ${learning.task}`,
+    "",
+    learning.result ? `- Result: ${learning.result}` : "- Result: not recorded",
+    learning.sources ? `- Sources/tools used: ${learning.sources}` : "- Sources/tools used: not recorded",
+    learning.steps ? `- Steps taken: ${learning.steps}` : "- Steps taken: not recorded",
+    learning.slowParts ? `- Slow or repeated parts: ${learning.slowParts}` : "- Slow or repeated parts: none recorded",
+    learning.fasterPath ? `- Faster path next time: ${learning.fasterPath}` : "- Faster path next time: think again before repeating this task",
+    learning.nextTime ? `- Next-time rule: ${learning.nextTime}` : "- Next-time rule: verify whether a playbook already exists before starting similar work",
+    ""
+  ].join("\n");
+  fs.appendFileSync(learningPath, entry);
+
+  if (learning.playbook || learning.fasterPath || learning.nextTime) {
+    fs.appendFileSync(playbookPath, [
+      "",
+      `## ${stamp} - ${learning.task}`,
+      "",
+      learning.playbook ? learning.playbook : [
+        learning.fasterPath ? `- Faster path: ${learning.fasterPath}` : "",
+        learning.nextTime ? `- Use when: ${learning.nextTime}` : "",
+        learning.sources ? `- Useful sources/tools: ${learning.sources}` : ""
+      ].filter(Boolean).join("\n"),
+      ""
+    ].join("\n"));
+  }
+
+  appendJsonl(DEFAULT_LOG_PATH, { event: "learning_recorded", learning });
+  console.log(`Recorded Ops Brain learning: ${learningPath}`);
+}
+
 function cronCommand(args) {
   const sub = args._[1] || "";
   if (sub !== "install") fail("Usage: openclaw-work-agent cron install");
@@ -1515,7 +1607,7 @@ function buildBrainLoopMessage(kind) {
       "Think through the full company map: customers, product surfaces, workflows, growth channels, risks, and decision rules.",
       "For Firebase rental-marketplace context, check online users, users today, properties/listings updated today, and function/backend errors when tools are available.",
       "For website context, consider latest blog/review content, latest repo push, conversion opportunities, performance improvements, and SEO suggestions.",
-      "Update the work vault with any meaningful finding.",
+      "Update the work vault with any meaningful finding and record a closed-loop learning note if this task revealed a faster path, repeated steps, or a useful playbook.",
       "Stay silent unless a real action is needed. Do not send email, mutate Firebase, deploy, delete, or change ad/payment settings without explicit confirmation."
     ].join(" ");
   }
@@ -1523,7 +1615,7 @@ function buildBrainLoopMessage(kind) {
     "Run the OpenClaw Ops Brain daily deep report.",
     "Use the work-agent skill, the agent profile at `~/.openclaw/workspace/agents/work-agent.md`, and your own reasoning to synthesize the company's current operating context.",
     "First run `~/.openclaw/tools/openclaw-work-agent run --scheduled deep` to collect connector status, threshold candidates, and write the work-vault report.",
-    "Then read the latest work-vault report and relevant work memory, inspect connected sources if needed, and update the work brain with decisions, repeated issues, suggested thresholds, connector setup steps, and automation candidates.",
+    "Then read the latest work-vault report, playbooks, and relevant work memory, inspect connected sources if needed, and update the work brain with decisions, repeated issues, suggested thresholds, connector setup steps, faster paths, and automation candidates.",
     "Include full company-map gaps, live business snapshot, repo/content context, product improvement ideas, SEO/content suggestions, and backend/Firebase issues that should be fixed or assigned.",
     "Only notify the user if there is a decision or action worth taking. Do not send external replies or mutate production systems without explicit confirmation."
   ].join(" ");
@@ -1549,6 +1641,7 @@ Usage:
   openclaw-work-agent status [--json]
   openclaw-work-agent run [--dry-run] [--scheduled] [--notify]
   openclaw-work-agent ask <question>
+  openclaw-work-agent learn --task "..." --result "..." --steps "..." --faster "..." --next "..."
   openclaw-work-agent mode ask|full
   openclaw-work-agent thresholds show
   openclaw-work-agent thresholds set-gmail --terms "feedback,bug,refund" --lookback 1d --count 1
@@ -1570,6 +1663,7 @@ async function main() {
   if (command === "status") return statusCommand(args);
   if (command === "run") return runCommand(args);
   if (command === "ask") return askCommand(args);
+  if (command === "learn") return learnCommand(args);
   if (command === "mode") return modeCommand(args);
   if (command === "thresholds") return thresholdsCommand(args);
   if (command === "cron") return cronCommand(args);

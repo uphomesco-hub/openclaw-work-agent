@@ -11,6 +11,7 @@ It gives OpenClaw a company operating layer that can:
 - keep a local company profile
 - write Obsidian-backed work reports into a dedicated work-only vault
 - monitor business and ops signals on a schedule
+- learn from every completed work task and write faster playbooks for next time
 - suggest automations and skills from repeated work
 - support default ask-then-execute mode and explicit full-access mode
 
@@ -120,6 +121,31 @@ After onboarding, `/work` should combine:
 - OpenClaw brain checks for live users, product activity, support/feedback, backend errors, content/repo changes, growth signals, and improvement ideas
 
 The CLI is only the local memory and signal collector. OpenClaw is the brain. Once the setup questions are answered, OpenClaw should use the installed agent profile at `~/.openclaw/workspace/agents/work-agent.md` and inspect connected tools before forming the live company snapshot.
+
+## Closed Loop Learning
+
+Ops Brain improves itself after work is done. For every meaningful task, OpenClaw can internally record:
+
+- what was done
+- which tools, MCPs, files, repos, or sources were useful
+- what was slow or repetitive
+- what should be faster next time
+- whether the task should become a reusable skill or workflow
+
+The learning loop writes to the work-only Obsidian vault:
+
+```text
+wiki/syntheses/ops-brain-learning.md
+wiki/playbooks/ops-brain-playbooks.md
+```
+
+Internal command:
+
+```bash
+~/.openclaw/tools/openclaw-work-agent learn --task "..." --result "..." --sources "..." --steps "..." --slow "..." --faster "..." --next "..."
+```
+
+The user should not need to run this. `/work` should remember useful paths, check prior playbooks before repeating work, and suggest better automations when repeated tasks appear.
 
 ## Light Monitor, Deep Report, And Candidate Signals
 

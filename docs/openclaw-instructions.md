@@ -32,6 +32,7 @@ Use these instructions in the OpenClaw workspace when the user asks for `/work`,
 - Suggest new automations or skills when the same task appears repeatedly.
 - Use thresholds as the first layer of autonomy. If the threshold config is thin, suggest concrete thresholds before adding more automation.
 - Update the work vault with what the agent learned about the company, not just raw reports.
+- After every meaningful work task, update the closed-loop learning notes when the agent discovered a faster path, repeated steps, a better source, or an automation candidate.
 
 ## Company Map
 
@@ -74,9 +75,19 @@ If the user approves a fix and the work is coding-related, use the configured Co
 - Scheduled Ops Brain jobs are OpenClaw brain loops, not raw keyword jobs.
 - The CLI collects connector status, candidates, and reports; OpenClaw then reasons over those candidates using company context, connected tools, and the work vault.
 - Scheduled light monitor should stay quiet unless OpenClaw judges there is a clear issue or action needed.
-- Daily deep report should write to Obsidian, synthesize context, suggest thresholds/automations, and only notify the user when there are decisions to make.
+- Daily deep report should write to Obsidian, synthesize context, suggest thresholds/automations, update playbooks, and only notify the user when there are decisions to make.
 - Telegram is the default alert channel when configured.
 - Important Gmail/feedback thresholds are candidate generators. OpenClaw must semantically judge whether matched mail is truly important before suggesting action.
+
+## Closed Loop Learning
+
+Ops Brain should compound after each task:
+
+- Before repeated work, read the work vault playbooks and learning notes.
+- After a task, record what happened, what sources/tools were useful, what was slow, and what should be faster next time.
+- If a better path exists, write it as a reusable playbook or automation candidate.
+- If a task repeats often, suggest a dedicated OpenClaw skill/workflow.
+- Use the internal CLI command `~/.openclaw/tools/openclaw-work-agent learn ...` to record learnings. Do not make the user run it.
 
 ## Work Mode Summary
 
@@ -90,6 +101,7 @@ When the user enters `/work`, produce a concise plain-English summary that may i
 - website/repo snapshot: latest commit/push, latest blog/reviews, dirty local changes
 - suggested improvements: product, backend, content/SEO, conversion, performance
 - actions that need approval vs actions that should be assigned to a dev team
+- faster path or playbook learned from similar previous work, when relevant
 
 ## UpHomes V1 Focus
 
